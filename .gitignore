@@ -1,0 +1,45 @@
+# Directories
+.vs
+/[O|o]ut
+/[B|b]uild
+/[B|b]in
+/[L|l]ib
+/[D|d]ocs
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Temporary
+*~
+*.tlog
+Valgrind*
+CppCheckResults*
+
+# Executables
+*.exe
+*.out
+*.app
