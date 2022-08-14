@@ -262,6 +262,66 @@ TEST(command_group, multiple_commands)
     }
 }
 
+TEST(default_error, context)
+{
+    auto group
+        = cli::command_group{}
+        | cli::command{}
+            .set_names({ "yolo" })
+            .set_description("Testning 1");
+
+    static_assert(std::is_same_v<decltype(group), cli::command_group>,
+        "Expecting type to be cli::command_group");
+
+    EXPECT_EQ(group.commands.size(), size_t{ 1 });
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
+
+    // FAIL
+    {
+        auto args = std::array{ "path/to/program", "test" };
+        auto context
+            = cli::context{}
+                .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+            | cli::default_error{};
+
+        EXPECT_EQ(context.argc, 2);
+        EXPECT_EQ(context.argv, args.data());
+
+        std::stringstream cerr_stream;
+        {
+            auto cout_redirect = test::output_redirect{ std::cerr, cerr_stream };
+            ASSERT_EQ(group.parse(context), cli::parse_codes::unknown_command);
+        }
+
+        std::string expected_error_string = "Unknown command 'test'.\n";
+
+        auto error_string = cerr_stream.str();
+        EXPECT_STREQ(error_string.c_str(), expected_error_string.c_str());
+    }
+    {
+        auto args = std::array{ "path/to/program"};
+        auto context
+            = cli::context{}
+             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+            | cli::default_error{};
+
+        EXPECT_EQ(context.argc, 1);
+        EXPECT_EQ(context.argv, args.data());
+
+        std::stringstream cerr_stream;
+        {
+            auto cout_redirect = test::output_redirect{ std::cerr, cerr_stream };
+            ASSERT_EQ(group.parse(context), cli::parse_codes::missing_command);
+        }
+
+        std::string expected_error_string = "Missing command.\n";
+
+        auto error_string = cerr_stream.str();
+        EXPECT_STREQ(error_string.c_str(), expected_error_string.c_str());
+    }
+}
+
 TEST(default_help, context)
 {
     auto group
@@ -293,7 +353,7 @@ TEST(default_help, context)
 
     std::stringstream cout_stream;
     {
-        auto cout_redirect = test::cout_redirect{ cout_stream };
+        auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
         ASSERT_EQ(group.parse(context), 0);
     }
     

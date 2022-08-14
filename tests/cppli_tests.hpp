@@ -36,7 +36,7 @@ namespace test {
 
     
 
-    class cout_redirect {
+    class output_redirect {
     private:
 
         struct null_streambuf : public std::streambuf
@@ -49,32 +49,35 @@ namespace test {
             }
         };
 
+        std::ostream& m_output;
         std::streambuf* m_original_cout_streambuf;
         bool m_delete_rdbuf;
 
     public:
-        [[nodiscard]] cout_redirect() :
-            m_original_cout_streambuf(std::cout.rdbuf(new null_streambuf())),
+        [[nodiscard]] explicit output_redirect(std::ostream& p_output) :
+            m_output(p_output),
+            m_original_cout_streambuf(p_output.rdbuf(new null_streambuf())),
             m_delete_rdbuf(true)
         {}
 
-        [[nodiscard]] explicit cout_redirect(std::stringstream& p_output) :
-            m_original_cout_streambuf(std::cout.rdbuf(p_output.rdbuf())),
+        [[nodiscard]] output_redirect(std::ostream& p_output, std::stringstream& p_target) :
+            m_output(p_output),
+            m_original_cout_streambuf(p_output.rdbuf(p_target.rdbuf())),
             m_delete_rdbuf(false)
         {}
         
 
-        ~cout_redirect() {
-            auto* ret = std::cout.rdbuf(m_original_cout_streambuf);
+        ~output_redirect() {
+            auto* ret = m_output.rdbuf(m_original_cout_streambuf);
             if (m_delete_rdbuf) {
                 delete ret;
             }
         }
 
-        cout_redirect(const cout_redirect&) = delete;
-        cout_redirect(cout_redirect&&) = delete;
-        cout_redirect& operator = (const cout_redirect&) = delete;
-        cout_redirect& operator = (cout_redirect&&) = delete;
+        output_redirect(const output_redirect&) = delete;
+        output_redirect(output_redirect&&) = delete;
+        output_redirect& operator = (const output_redirect&) = delete;
+        output_redirect& operator = (output_redirect&&) = delete;
 
     };
 
