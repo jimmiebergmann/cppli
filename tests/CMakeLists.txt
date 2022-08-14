@@ -11,6 +11,8 @@ if(UNIX AND NOT APPLE)
   find_package(Threads)
 endif()
 
+option(CPPLI_ENABLE_COVERAGE "Enables coverage reporting" OFF)
+
 set(root_dir "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(tests_dir "${root_dir}/tests")
 set(include_dir "${root_dir}/include")
@@ -40,5 +42,11 @@ set_target_properties(cppli_tests
   RUNTIME_OUTPUT_DIRECTORY_DEBUG "${root_dir}/bin"
   RUNTIME_OUTPUT_DIRECTORY_RELEASE "${root_dir}/bin"
 )
+
+# Code coverage
+if(CPPLI_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU") 
+  set_target_properties(cppli_tests PROPERTIES COMPILE_FLAGS "--coverage")
+  target_link_libraries(cppli_tests "gcov")
+endif()
 
 target_link_libraries(cppli_tests gtest_main)
