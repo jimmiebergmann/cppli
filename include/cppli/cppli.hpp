@@ -101,12 +101,6 @@ namespace cppli {
     command_group& operator | (command_group& lhs, help&& rhs);
     command_group operator | (command_group&& lhs, const help& rhs);
     command_group operator | (command_group&& lhs, help&& rhs);
-
-    int default_error_callback(context& p_context);
-
-    [[nodiscard]] std::string default_help_string(
-        const context& p_context,
-        const command_group& p_command_group);
  
 }
 
@@ -140,6 +134,8 @@ namespace cppli {
 
         default_error();
 
+        static void default_callback(context& p_cotext, std::string p_message);
+
     };
 
 
@@ -170,6 +166,12 @@ namespace cppli {
     struct default_help : help {
 
         explicit default_help(std::vector<std::string> names = { "-h", "--help" });
+
+        static int default_callback(context& p_context);
+
+        static std::string default_string(
+            const context& p_context,
+            const command_group& p_command_group);
 
     };
 
@@ -299,8 +301,13 @@ namespace cppli {
 
     // Default error.
     inline default_error::default_error() :
-        error{ [](context&, std::string message) { std::cerr << message << "\n"; } }
+        error{ &default_callback }
     {}
+
+    inline void default_error::default_callback(context& p_cotext, std::string p_message) {
+        std::cerr << p_message << "\n";
+    }
+
 
 
     // Help
@@ -354,10 +361,87 @@ namespace cppli {
 
     // Default help.
     inline default_help::default_help(std::vector<std::string> names) :
-        help{ std::move(names), "Show command line help.", &default_error_callback }
+        help{ std::move(names), "Show command line help.", &default_callback }
     {}
 
+    inline int default_help::default_callback(context& p_context) {
+        if (p_context.current_command_group.has_value()) {
+            std::cout << default_string(
+                p_context,
+                p_context.current_command_group.value()) << "\n";
+        }
 
+        return 0;
+    }
+
+    inline std::string default_help::default_string(
+        const context& p_context,
+        const command_group& p_command_group)
+    {
+        auto result = std::string{ "Usage: " };
+        result += !p_context.current_path.empty() ? p_context.current_path.back() + " " : "";
+
+        auto* help_handler = impl::get_help_handler(p_context, p_command_group);
+
+        const size_t pre_command_count =
+            p_command_group.commands.size() +
+            ((help_handler && help_handler->has_names()) ? size_t{ 1 } : size_t{ 0 });
+
+        if (pre_command_count == 0) {
+            return result;
+        }
+
+        size_t min_command_column = 0;
+        std::vector<std::pair<std::string, std::string>> command_rows = {};
+        command_rows.reserve(pre_command_count);
+
+        auto create_command_name = [](const std::vector<std::string>& names) {
+            std::string result;
+            for (const auto& name : names) {
+                if (name.empty()) {
+                    continue;
+                }
+                if (!result.empty()) {
+                    result += "|";
+                }
+                result += name;
+            }
+
+            return result;
+        };
+
+        auto add_command_rows = [&](const std::vector<std::string>& names, const std::string& description) {
+            const std::string name = create_command_name(names);
+            if (name.empty()) {
+                return;
+            }
+            command_rows.emplace_back(name, description);
+            min_command_column = std::max(min_command_column, name.size());
+        };
+
+        if (help_handler) {
+            add_command_rows(help_handler->names, help_handler->description);
+        }
+        for (const auto& command : p_command_group.commands) {
+            add_command_rows(command.names, command.description);
+        }
+
+        if (command_rows.empty()) {
+            return result;
+        }
+
+        result += "[command] [command-options]\n\nCommands:\n";
+
+        for (const auto& command_row : command_rows) {
+            const auto& [name, description] = command_row;
+            result += "  " + name;
+            const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
+            result += std::string(tab_width, ' ');
+            result += description + "\n";
+        }
+
+        return result;
+    }
 
     // Context.
     inline context& context::set_arg(int p_argc, char** p_argv) {
@@ -753,85 +837,6 @@ namespace cppli {
     inline command_group operator | (command_group&& lhs, help&& rhs) {
         lhs.set_help(std::move(rhs));
         return lhs;
-    }
-
-    inline int default_error_callback(context& p_context) {
-        if (p_context.current_command_group.has_value()) {
-            std::cout << default_help_string(
-                p_context,
-                p_context.current_command_group.value()) << "\n";
-        }
-
-        return 0;
-    }
-
-    inline std::string default_help_string(
-        const context& p_context,
-        const command_group& p_command_group)
-    {
-        auto result = std::string{ "Usage: " };
-        result += !p_context.current_path.empty() ? p_context.current_path.back() + " " : "";
-
-        auto* help_handler = impl::get_help_handler(p_context, p_command_group);
-
-        const size_t pre_command_count =
-            p_command_group.commands.size() +
-            (help_handler && help_handler->has_names()) ? size_t{ 1 } : size_t{ 0 };
-
-        if (pre_command_count == 0) {
-            return result;
-        }
-
-        size_t min_command_column = 0;
-        std::vector<std::pair<std::string, std::string>> command_rows = {};
-        command_rows.reserve(pre_command_count);
-
-        auto create_command_name = [](const std::vector<std::string>& names) {
-            std::string result;
-            for (const auto& name : names) {
-                if (name.empty()) {
-                    continue;
-                }
-                if (!result.empty()) {
-                    result += "|";
-                }
-                result += name;
-            }
-
-            return result;
-        };
-
-        auto add_command_rows = [&](const std::vector<std::string>& names, const std::string& description) {
-            const std::string name = create_command_name(names);
-            if (name.empty()) {
-                return;
-            }
-            command_rows.emplace_back(name, description);
-            min_command_column = std::max(min_command_column, name.size());
-        };
-
-        if (help_handler) {
-            add_command_rows(help_handler->names, help_handler->description);
-        }
-        for (const auto& command : p_command_group.commands) {
-            add_command_rows(command.names, command.description);
-        }
-
-        if (command_rows.empty()) {
-            return result;
-        }
-
-        result += "[command] [command-options]\n\nCommands:\n";
-
-        for (const auto& command_row : command_rows) {
-            const auto& [name, description] = command_row;
-            result += "  " + name;
-            const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
-            result += std::string(tab_width, ' ');
-            result += description + "\n";
-        }
-
-        return result;
     }
 
 }
