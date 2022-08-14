@@ -19,7 +19,7 @@ set(include_dir "${root_dir}/include")
 set(vendor_dir "${root_dir}/vendor")
 
 file(GLOB_RECURSE cppli_header_file "${include_dir}/cppli/*.hpp")
-file(GLOB_RECURSE source_file "${tests_dir}/*.cpp")
+file(GLOB_RECURSE source_files "${tests_dir}/*.cpp" "${tests_dir}/*.hpp")
 
 if (NOT TARGET gtest)
 	SET(gtest_force_shared_crt on CACHE BOOL
@@ -27,7 +27,7 @@ if (NOT TARGET gtest)
 	add_subdirectory(${vendor_dir}/googletest ${vendor_dir}/googletest EXCLUDE_FROM_ALL)
 endif()
 
-add_executable(cppli_tests "${source_file}" "${cppli_header_file}")
+add_executable(cppli_tests "${source_files}" "${cppli_header_file}")
 target_include_directories(cppli_tests PUBLIC "${include_dir}")
 target_include_directories(cppli_tests PUBLIC "${vendor_dir}/googletest/googletest/include")
 

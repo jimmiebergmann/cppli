@@ -23,9 +23,7 @@
 *
 */
 
-#include "gtest/gtest.h"
-#include "cppli/cppli.hpp"
-#include <array>
+#include "cppli_tests.hpp"
 
 int main(int argc, char** argv)
 {
@@ -48,7 +46,7 @@ TEST(command_group, empty_group)
 
     // FAIL
     {
-        auto args = std::array{ "path/to/progrma", "test" };
+        auto args = std::array{ "path/to/program", "test" };
         auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
         EXPECT_EQ(context.argc, 2);
@@ -56,7 +54,7 @@ TEST(command_group, empty_group)
         EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
     }
     {
-        auto args = std::array{ "path/to/progrma", "", "test" };
+        auto args = std::array{ "path/to/program", "", "test" };
         auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
         EXPECT_EQ(context.argc, 3);
@@ -91,7 +89,7 @@ TEST(command_group, single_command)
     // FAIL
     reset_triggered_callback();
     {
-        auto args = std::array{ "path/to/progrma", "test" };
+        auto args = std::array{ "path/to/program", "test" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -102,7 +100,7 @@ TEST(command_group, single_command)
     }
     reset_triggered_callback();
     {
-        auto args = std::array{ "path/to/progrma", "" };
+        auto args = std::array{ "path/to/program", "" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -115,7 +113,7 @@ TEST(command_group, single_command)
     // OK
     reset_triggered_callback();
     {
-        auto args = std::array{ "path/to/progrma", "yolo" };
+        auto args = std::array{ "path/to/program", "yolo" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -126,7 +124,7 @@ TEST(command_group, single_command)
     }
     reset_triggered_callback();
     {
-        auto args = std::array{ "path/to/progrma", "swag" };
+        auto args = std::array{ "path/to/program", "swag" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -137,7 +135,7 @@ TEST(command_group, single_command)
     }
     reset_triggered_callback();
     {
-        auto args = std::array{ "path/to/progrma", "", "swag" };
+        auto args = std::array{ "path/to/program", "", "swag" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -185,7 +183,7 @@ TEST(command_group, multiple_commands)
     // FAIL
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "test" };
+        auto args = std::array{ "path/to/program", "test" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -196,7 +194,7 @@ TEST(command_group, multiple_commands)
     }
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "" };
+        auto args = std::array{ "path/to/program", "" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -209,7 +207,7 @@ TEST(command_group, multiple_commands)
     // OK
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "yolo" };
+        auto args = std::array{ "path/to/program", "yolo" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -220,7 +218,7 @@ TEST(command_group, multiple_commands)
     }
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "swag" };
+        auto args = std::array{ "path/to/program", "swag" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -231,7 +229,7 @@ TEST(command_group, multiple_commands)
     }
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "hello" };
+        auto args = std::array{ "path/to/program", "hello" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -242,7 +240,7 @@ TEST(command_group, multiple_commands)
     }
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "foo" };
+        auto args = std::array{ "path/to/program", "foo" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -253,7 +251,7 @@ TEST(command_group, multiple_commands)
     }
     reset_triggered_callbacks();
     {
-        auto args = std::array{ "path/to/progrma", "", "bar" };
+        auto args = std::array{ "path/to/program", "", "bar" };
         auto context = cli::context{}
             .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -262,4 +260,52 @@ TEST(command_group, multiple_commands)
         EXPECT_EQ(group.parse(context), 300);
         EXPECT_TRUE(check_triggered_callbacks(false, false, true));
     }
+}
+
+TEST(default_help, context)
+{
+    auto group
+        = cli::command{}
+            .set_names({ "yolo", "swag" })
+            .set_description("Testning 1")
+        | cli::command{}
+            .set_names({ "hello" })
+            .set_description("Testning 2")
+        | cli::command{}
+            .set_names({ "foo", "bar" })
+            .set_description("Testning 3");
+
+    static_assert(std::is_same_v<decltype(group), cli::command_group>,
+        "Expecting type to be cli::command_group");
+
+    EXPECT_EQ(group.commands.size(), size_t{ 3 });
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
+
+    auto args = std::array{ "path/to/program", "--help" };
+    auto context
+        = cli::context{}
+            .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+        | cli::default_help{};
+
+    EXPECT_EQ(context.argc, 2);
+    EXPECT_EQ(context.argv, args.data());
+
+    std::stringstream cout_stream;
+    {
+        auto cout_redirect = test::cout_redirect{ cout_stream };
+        ASSERT_EQ(group.parse(context), 0);
+    }
+    
+    std::string expected_help_string =
+        "Usage: program [command] [command-options]\n\n"
+        "Commands:\n"
+        "  -h|--help      Show command line help.\n"
+        "  yolo|swag      Testning 1\n"
+        "  hello          Testning 2\n"
+        "  foo|bar        Testning 3\n";
+
+    auto help_string = cout_stream.str();
+    EXPECT_STREQ(help_string.c_str(), expected_help_string.c_str());
+
 }

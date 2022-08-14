@@ -368,7 +368,7 @@ namespace cppli {
         if (p_context.current_command_group.has_value()) {
             std::cout << default_string(
                 p_context,
-                p_context.current_command_group.value()) << "\n";
+                p_context.current_command_group.value());
         }
 
         return 0;
@@ -578,7 +578,7 @@ namespace cppli {
                 return parse_codes::unknown_command;
             }
 
-            auto help_it = std::find_if(help_handler->names.begin(), help_handler->names.end(),
+            auto help_it = std::find_if(current_help_handler->names.begin(), current_help_handler->names.end(),
                 [&command_name](const auto& name) { return name == command_name; });
 
             if (help_it == current_help_handler->names.end()) {

@@ -57,7 +57,7 @@ Commands:
 ```
 
 # Usage
-Add [include](https://github.com/jimmiebergmann/cppli/blob/master/include) to your project's include directories and `#include "cppli/cppli.hpp"`. 
+Add [include](https://github.com/jimmiebergmann/cppli/blob/master/include) to your project's include directories and `#include "cppli/cppli.hpp"`.  
 All files are licensed under `MIT license`, see the [LICENSE](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE) for more information.
 
 # Build examples and tests
