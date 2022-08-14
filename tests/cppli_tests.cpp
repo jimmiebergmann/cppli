@@ -43,8 +43,8 @@ TEST(command_group, empty_group)
     auto group = cli::command_group{};
 
     EXPECT_TRUE(group.commands.empty());
-    EXPECT_FALSE(group.error.has_value());
-    EXPECT_FALSE(group.help.has_value());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
 
     // FAIL
     {
@@ -85,8 +85,8 @@ TEST(command_group, single_command)
 
     EXPECT_FALSE(triggered_callback);
     EXPECT_EQ(group.commands.size(), size_t{ 1 });
-    EXPECT_FALSE(group.error.has_value());
-    EXPECT_FALSE(group.help.has_value());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
 
     // FAIL
     reset_triggered_callback();
@@ -179,8 +179,8 @@ TEST(command_group, multiple_commands)
 
     EXPECT_TRUE(check_triggered_callbacks(false, false, false));
     EXPECT_EQ(group.commands.size(), size_t{ 3 });
-    EXPECT_FALSE(group.error.has_value());
-    EXPECT_FALSE(group.help.has_value());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
 
     // FAIL
     reset_triggered_callbacks();

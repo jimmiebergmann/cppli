@@ -102,10 +102,12 @@ namespace cppli {
     command_group operator | (command_group&& lhs, const help& rhs);
     command_group operator | (command_group&& lhs, help&& rhs);
 
+    int default_error_callback(context& p_context);
+
     [[nodiscard]] std::string default_help_string(
         const context& p_context,
         const command_group& p_command_group);
-
+ 
 }
 
 namespace cppli::impl {
@@ -113,12 +115,12 @@ namespace cppli::impl {
     std::string_view parse_program_name(const char* path);
 
     template<typename T>
-    const error* get_error(const context& p_context, const T& p_other);
+    const error* get_error_handler(const context& p_context, const T& p_other);
 
     error_callback get_error_callback(const error* p_error);
 
     template<typename T>
-    const help* get_help(const context& p_context, const T& p_other);
+    const help* get_help_handler(const context& p_context, const T& p_other);
 
 }
 
@@ -177,8 +179,8 @@ namespace cppli {
         int argc = 0;
         char** argv = nullptr;
         bool first_arg_is_path = true;
-        std::optional<error> error = {};
-        std::optional<help> help = {};
+        std::optional<error> error_handler = {};
+        std::optional<help> help_handler = {};
         std::vector<std::string> current_path = {};
         std::optional<std::reference_wrapper<const command_group>> current_command_group = {};
 
@@ -218,8 +220,8 @@ namespace cppli {
     struct command_group {
 
         std::vector<command> commands = {};
-        std::optional<error> error;
-        std::optional<help> help;
+        std::optional<error> error_handler;
+        std::optional<help> help_handler;
 
         int parse(context& p_context) const;
 
@@ -229,11 +231,11 @@ namespace cppli {
         command_group& add_commands(command_group&& p_command_group);
         command_group& add_commands(const command_group& p_command_group);
 
-        command_group& set_error(const cppli::error& p_error);
-        command_group& set_error(cppli::error&& p_error);
+        command_group& set_error(const error& p_error);
+        command_group& set_error(error&& p_error);
 
-        command_group& set_help(const cppli::help& p_help);
-        command_group& set_help(cppli::help&& p_help);
+        command_group& set_help(const help& p_help);
+        command_group& set_help(help&& p_help);
 
     };
 
@@ -243,8 +245,7 @@ namespace cppli {
 // Implementations.
 namespace cppli::impl {
 
-    inline std::string_view parse_program_name(const char* path)
-    {
+    inline std::string_view parse_program_name(const char* path) {
         const auto path_view = std::string_view{ path, strlen(path) };
 
         const auto last_dir_pos = path_view.find_last_of("/\\");
@@ -260,12 +261,12 @@ namespace cppli::impl {
     }
 
     template<typename T>
-    inline const error* get_error(const context& p_context, const T& p_other) {
-        return p_other.error.has_value() ?
-            &p_other.error.value() :
-            p_context.error.has_value() ?
-            &p_context.error.value() :
-            nullptr;
+    inline const error* get_error_handler(const context& p_context, const T& p_other) {
+        return p_other.error_handler.has_value() ?
+            &p_other.error_handler.value() :
+            p_context.error_handler.has_value() ?
+                &p_context.error_handler.value() :
+                nullptr;
     }
 
     inline error_callback get_error_callback(const error* p_error) {
@@ -273,12 +274,12 @@ namespace cppli::impl {
     }
 
     template<typename T>
-    inline const help* get_help(const context& p_context, const T& p_other) {
-        return p_other.help.has_value() ?
-            &p_other.help.value() :
-            p_context.help.has_value() ?
-            &p_context.help.value() :
-            nullptr;
+    inline const help* get_help_handler(const context& p_context, const T& p_other) {
+        return p_other.help_handler.has_value() ?
+            &p_other.help_handler.value() :
+            p_context.help_handler.has_value() ?
+                &p_context.help_handler.value() :
+                nullptr;
     }
 
 }
@@ -353,482 +354,485 @@ namespace cppli {
 
     // Default help.
     inline default_help::default_help(std::vector<std::string> names) :
-        help{ std::move(names), "Show command line help.", [](context& p_context) {
-
-            if (p_context.current_command_group.has_value()) {
-                std::cout << default_help_string(
-                    p_context,
-                    p_context.current_command_group.value()) << "\n";
-            }
-
-            return 0;
-        } }
+        help{ std::move(names), "Show command line help.", &default_error_callback }
     {}
 
 
-        // Context.
-        inline context& context::set_arg(int p_argc, char** p_argv) {
-            argc = p_argc;
-            argv = p_argv;
-            return *this;
-        }
-        inline context& context::set_argc(int p_argc) {
-            argc = p_argc;
-            return *this;
-        }
-        inline context& context::set_argv(char** p_argv) {
-            argv = p_argv;
-            return *this;
-        }
 
-        inline context& context::move_to_next_arg() {
-            if (argc <= 0) {
-                return *this;
+    // Context.
+    inline context& context::set_arg(int p_argc, char** p_argv) {
+        argc = p_argc;
+        argv = p_argv;
+        return *this;
+    }
+    inline context& context::set_argc(int p_argc) {
+        argc = p_argc;
+        return *this;
+    }
+    inline context& context::set_argv(char** p_argv) {
+        argv = p_argv;
+        return *this;
+    }
+
+    inline context& context::move_to_next_arg() {
+        if (argc <= 0) {
+            return *this;
+        }
+        first_arg_is_path = false;
+        --argc;
+        ++argv;
+
+        while (argc > 0) {
+            if (argv[0] != nullptr && std::strlen(argv[0]) > 0) {
+                break;
             }
-            first_arg_is_path = false;
             --argc;
             ++argv;
+        }
 
-            while (argc > 0) {
-                if (argv[0] != nullptr && std::strlen(argv[0]) > 0) {
-                    break;
+        return *this;
+    }
+
+
+    // Command.
+    inline bool command::has_name(std::string_view p_name) const {
+        auto it = std::find_if(names.begin(), names.end(), [p_name](const auto& name) {
+            return name == p_name;
+            });
+
+        return it != names.end();
+    }
+
+    inline command& command::set_name(const std::string& p_name) {
+        names = { p_name };
+        return *this;
+    }
+    inline command& command::set_name(std::string&& p_name) {
+        names = { std::move(p_name) };
+        return *this;
+    }
+
+    inline command& command::set_names(std::initializer_list<std::string> p_names) {
+        names = p_names;
+        return *this;
+    }
+    inline command& command::set_names(const std::vector<std::string>& p_names) {
+        names = p_names;
+        return *this;
+    }
+    inline command& command::set_names(std::vector<std::string>&& p_names) {
+        names = std::move(p_names);
+        return *this;
+    }
+
+    inline command& command::set_description(const std::string& p_description) {
+        description = p_description;
+        return *this;
+    }
+    inline command& command::set_description(std::string&& p_description) {
+        description = std::move(p_description);
+        return *this;
+    }
+
+    inline command& command::set_callback(const command_callback& p_callback) {
+        callback = p_callback;
+        return *this;
+    }
+    inline command& command::set_callback(command_callback&& p_callback) {
+        callback = std::move(p_callback);
+        return *this;
+    }
+
+
+    // Command group.
+    inline int command_group::parse(context& p_context) const {
+        auto* current_help_handler = impl::get_help_handler(p_context, *this);
+
+        if (commands.empty() && (current_help_handler == nullptr || !current_help_handler->has_names())) {
+            return parse_codes::unknown_command;
+        }
+
+        p_context.current_command_group = *this;
+
+        auto* current_error_handler = impl::get_error_handler(p_context, *this);
+        auto error_callback = impl::get_error_callback(current_error_handler);
+
+        if (p_context.argc < 1) {
+            error_callback(p_context, "Missing command.");
+            return parse_codes::missing_command;
+        }
+
+        if (p_context.first_arg_is_path) {
+            auto program_name = impl::parse_program_name(p_context.argv[0]);
+            if (!program_name.empty()) {
+                p_context.current_path.emplace_back(program_name);
+            }
+            p_context.move_to_next_arg();
+        }
+
+        if (p_context.argc < 1) {
+            error_callback(p_context, "Missing command.");
+            return parse_codes::missing_command;
+        }
+
+        auto find_command = [&](std::string_view name) -> const command* {
+            for (auto& command : commands) {
+                if (command.has_name(name)) {
+                    return &command;
                 }
-                --argc;
-                ++argv;
             }
 
-            return *this;
-        }
+            return nullptr;
+        };
 
+        const auto command_name = std::string_view{ p_context.argv[0] };
 
-        // Command.
-        inline bool command::has_name(std::string_view p_name) const {
-            auto it = std::find_if(names.begin(), names.end(), [p_name](const auto& name) {
-                return name == p_name;
-                });
-
-            return it != names.end();
-        }
-
-        inline command& command::set_name(const std::string& p_name) {
-            names = { p_name };
-            return *this;
-        }
-        inline command& command::set_name(std::string&& p_name) {
-            names = { std::move(p_name) };
-            return *this;
-        }
-
-        inline command& command::set_names(std::initializer_list<std::string> p_names) {
-            names = p_names;
-            return *this;
-        }
-        inline command& command::set_names(const std::vector<std::string>& p_names) {
-            names = p_names;
-            return *this;
-        }
-        inline command& command::set_names(std::vector<std::string>&& p_names) {
-            names = std::move(p_names);
-            return *this;
-        }
-
-        inline command& command::set_description(const std::string& p_description) {
-            description = p_description;
-            return *this;
-        }
-        inline command& command::set_description(std::string&& p_description) {
-            description = std::move(p_description);
-            return *this;
-        }
-
-        inline command& command::set_callback(const command_callback& p_callback) {
-            callback = p_callback;
-            return *this;
-        }
-        inline command& command::set_callback(command_callback&& p_callback) {
-            callback = std::move(p_callback);
-            return *this;
-        }
-
-
-        // Command group.
-        inline int command_group::parse(context& p_context) const {
-            auto* help = impl::get_help(p_context, *this);
-
-            if (commands.empty() && (help == nullptr || !help->has_names())) {
+        auto command = find_command(command_name);
+        if (command == nullptr) {
+            if (current_help_handler == nullptr || !current_help_handler->has_names()) {
+                error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
                 return parse_codes::unknown_command;
             }
 
-            p_context.current_command_group = *this;
+            auto help_it = std::find_if(help_handler->names.begin(), help_handler->names.end(),
+                [&command_name](const auto& name) { return name == command_name; });
 
-            auto* error = impl::get_error(p_context, *this);
-            auto error_callback = impl::get_error_callback(error);
-
-            if (p_context.argc < 1) {
-                error_callback(p_context, "Missing command.");
-                return parse_codes::missing_command;
+            if (help_it == current_help_handler->names.end()) {
+                error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
+                return parse_codes::unknown_command;
             }
 
-            if (p_context.first_arg_is_path) {
-                auto program_name = impl::parse_program_name(p_context.argv[0]);
-                if (!program_name.empty()) {
-                    p_context.current_path.emplace_back(program_name);
-                }
-                p_context.move_to_next_arg();
-            }
-
-            if (p_context.argc < 1) {
-                error_callback(p_context, "Missing command.");
-                return parse_codes::missing_command;
-            }
-
-            auto find_command = [&](std::string_view name) -> const command* {
-                for (auto& command : commands) {
-                    if (command.has_name(name)) {
-                        return &command;
-                    }
-                }
-
-                return nullptr;
-            };
-
-            const auto command_name = std::string_view{ p_context.argv[0] };
-
-            auto command = find_command(command_name);
-            if (command == nullptr)
-            {
-                if (help == nullptr || !help->has_names()) {
-                    error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
-                    return parse_codes::unknown_command;
-                }
-
-                auto help_it = std::find_if(help->names.begin(), help->names.end(),
-                    [&command_name](const auto& name) { return name == command_name; });
-
-                if (help_it == help->names.end()) {
-                    error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
-                    return parse_codes::unknown_command;
-                }
-
-                return help->callback ? help->callback(p_context) : parse_codes::successful;
-            }
-
-            p_context.current_path.emplace_back(command_name);
-            p_context.move_to_next_arg();
-
-            return command->callback ? command->callback(p_context) : parse_codes::successful;
+            return current_help_handler->callback ?
+                current_help_handler->callback(p_context) :
+                parse_codes::successful;
         }
 
-        inline command_group& command_group::add_command(const command& p_command) {
-            commands.emplace_back(p_command);
-            return *this;
-        }
-        inline command_group& command_group::add_command(command&& p_command) {
-            commands.emplace_back(std::move(p_command));
-            return *this;
+        p_context.current_path.emplace_back(command_name);
+        p_context.move_to_next_arg();
+
+        return command->callback ? command->callback(p_context) : parse_codes::successful;
+    }
+
+    inline command_group& command_group::add_command(const command& p_command) {
+        commands.emplace_back(p_command);
+        return *this;
+    }
+    inline command_group& command_group::add_command(command&& p_command) {
+        commands.emplace_back(std::move(p_command));
+        return *this;
+    }
+
+    inline command_group& command_group::add_commands(command_group&& p_command_group) {
+        commands.insert(
+            commands.end(),
+            std::make_move_iterator(p_command_group.commands.begin()),
+            std::make_move_iterator(p_command_group.commands.end()));
+        p_command_group.commands.clear();
+
+        if (!error_handler.has_value() && p_command_group.error_handler.has_value()) {
+            error_handler = std::move(p_command_group.error_handler);
         }
 
-        inline command_group& command_group::add_commands(command_group&& p_command_group) {
-            commands.insert(
-                commands.end(),
-                std::make_move_iterator(p_command_group.commands.begin()),
-                std::make_move_iterator(p_command_group.commands.end()));
-            p_command_group.commands.clear();
-
-            if (!error.has_value() && p_command_group.error.has_value()) {
-                error = std::move(p_command_group.error);
-            }
-
-            if (!help.has_value() && p_command_group.help.has_value()) {
-                help = std::move(p_command_group.help);
-            }
-
-            return *this;
-        }
-        inline command_group& command_group::add_commands(const command_group& p_command_group) {
-            commands.insert(
-                commands.end(),
-                p_command_group.commands.begin(),
-                p_command_group.commands.end());
-
-            if (!error.has_value() && p_command_group.error.has_value()) {
-                error = p_command_group.error;
-            }
-
-            if (!help.has_value() && p_command_group.help.has_value()) {
-                help = p_command_group.help;
-            }
-
-            return *this;
+        if (!help_handler.has_value() && p_command_group.help_handler.has_value()) {
+            help_handler = std::move(p_command_group.help_handler);
         }
 
-        inline command_group& command_group::set_error(const cppli::error& p_error) {
-            error = p_error;
-            return *this;
-        }
-        inline command_group& command_group::set_error(cppli::error&& p_error) {
-            error = std::move(p_error);
-            return *this;
+        return *this;
+    }
+    inline command_group& command_group::add_commands(const command_group& p_command_group) {
+        commands.insert(
+            commands.end(),
+            p_command_group.commands.begin(),
+            p_command_group.commands.end());
+
+        if (!error_handler.has_value() && p_command_group.error_handler.has_value()) {
+            error_handler = p_command_group.error_handler;
         }
 
-        inline command_group& command_group::set_help(const cppli::help& p_help) {
-            help = p_help;
-            return *this;
-        }
-        inline command_group& command_group::set_help(cppli::help&& p_help) {
-            help = std::move(p_help);
-            return *this;
+        if (!help_handler.has_value() && p_command_group.help_handler.has_value()) {
+            help_handler = p_command_group.help_handler;
         }
 
+        return *this;
+    }
 
-        // Context operators.
-        inline context& operator | (context& lhs, const error& rhs) {
-            lhs.error = rhs;
-            return lhs;
-        }
-        inline context& operator | (context& lhs, error&& rhs) {
-            lhs.error = std::move(rhs);
-            return lhs;
-        }
-        inline context operator | (context&& lhs, const error& rhs) {
-            lhs.error = rhs;
-            return lhs;
-        }
-        inline context operator | (context&& lhs, error&& rhs) {
-            lhs.error = std::move(rhs);
-            return lhs;
-        }
+    inline command_group& command_group::set_error(const error& p_error) {
+        error_handler = p_error;
+        return *this;
+    }
+    inline command_group& command_group::set_error(error&& p_error) {
+        error_handler = std::move(p_error);
+        return *this;
+    }
 
-        inline context& operator | (context& lhs, const help& rhs) {
-            lhs.help = rhs;
-            return lhs;
-        }
-        inline context& operator | (context& lhs, help&& rhs) {
-            lhs.help = std::move(rhs);
-            return lhs;
-        }
-        inline context operator | (context&& lhs, const help& rhs) {
-            lhs.help = rhs;
-            return lhs;
-        }
-        inline context operator | (context&& lhs, help&& rhs) {
-            lhs.help = std::move(rhs);
-            return lhs;
-        }
+    inline command_group& command_group::set_help(const help& p_help) {
+        help_handler = p_help;
+        return *this;
+    }
+    inline command_group& command_group::set_help(help&& p_help) {
+        help_handler = std::move(p_help);
+        return *this;
+    }
 
 
-        // Command operators.
-        inline command_group operator | (command& lhs, const command& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.add_command(rhs);
-            return group;
-        }
-        inline command_group operator | (command& lhs, command&& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.add_command(std::move(rhs));
-            return group;
-        }
-        inline command_group operator | (command&& lhs, const command& rhs) {
-            auto group = command_group{};
-            group.add_command(std::move(lhs));
-            group.add_command(rhs);
-            return group;
-        }
-        inline command_group operator | (command&& lhs, command&& rhs) {
-            auto group = command_group{};
-            group.add_command(std::move(lhs));
-            group.add_command(std::move(rhs));
-            return group;
+    // Context operators.
+    inline context& operator | (context& lhs, const error& rhs) {
+        lhs.error_handler = rhs;
+        return lhs;
+    }
+    inline context& operator | (context& lhs, error&& rhs) {
+        lhs.error_handler = std::move(rhs);
+        return lhs;
+    }
+    inline context operator | (context&& lhs, const error& rhs) {
+        lhs.error_handler = rhs;
+        return lhs;
+    }
+    inline context operator | (context&& lhs, error&& rhs) {
+        lhs.error_handler = std::move(rhs);
+        return lhs;
+    }
+
+    inline context& operator | (context& lhs, const help& rhs) {
+        lhs.help_handler = rhs;
+        return lhs;
+    }
+    inline context& operator | (context& lhs, help&& rhs) {
+        lhs.help_handler = std::move(rhs);
+        return lhs;
+    }
+    inline context operator | (context&& lhs, const help& rhs) {
+        lhs.help_handler = rhs;
+        return lhs;
+    }
+    inline context operator | (context&& lhs, help&& rhs) {
+        lhs.help_handler = std::move(rhs);
+        return lhs;
+    }
+
+
+    // Command operators.
+    inline command_group operator | (command& lhs, const command& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.add_command(rhs);
+        return group;
+    }
+    inline command_group operator | (command& lhs, command&& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.add_command(std::move(rhs));
+        return group;
+    }
+    inline command_group operator | (command&& lhs, const command& rhs) {
+        auto group = command_group{};
+        group.add_command(std::move(lhs));
+        group.add_command(rhs);
+        return group;
+    }
+    inline command_group operator | (command&& lhs, command&& rhs) {
+        auto group = command_group{};
+        group.add_command(std::move(lhs));
+        group.add_command(std::move(rhs));
+        return group;
+    }
+
+    inline command_group operator | (command& lhs, const error& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_error(rhs);
+        return group;
+    }
+    inline command_group operator | (command& lhs, error&& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_error(std::move(rhs));
+        return group;
+    }
+    inline command_group operator | (command&& lhs, const error& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_error(rhs);
+        return group;
+    }
+    inline command_group operator | (command&& lhs, error&& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_error(std::move(rhs));
+        return group;
+    }
+
+    inline command_group operator | (command& lhs, const help& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_help(rhs);
+        return group;
+    }
+    inline command_group operator | (command& lhs, help&& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_help(std::move(rhs));
+        return group;
+    }
+    inline command_group operator | (command&& lhs, const help& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_help(rhs);
+        return group;
+    }
+    inline command_group operator | (command&& lhs, help&& rhs) {
+        auto group = command_group{};
+        group.add_command(lhs);
+        group.set_help(std::move(rhs));
+        return group;
+    }
+
+    inline command_group& operator | (command_group& lhs, const command& rhs) {
+        lhs.add_command(rhs);
+        return lhs;
+    }
+    inline command_group& operator | (command_group& lhs, command&& rhs) {
+        lhs.add_command(std::move(rhs));
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, const command& rhs) {
+        lhs.add_command(rhs);
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, command&& rhs) {
+        lhs.add_command(std::move(rhs));
+        return lhs;
+    }
+
+    inline command_group& operator | (command_group& lhs, const command_group& rhs) {
+        lhs.add_commands(rhs);
+        return lhs;
+    }
+    inline command_group& operator | (command_group& lhs, command_group&& rhs) {
+        lhs.add_commands(std::move(rhs));
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, const command_group& rhs) {
+        lhs.add_commands(rhs);
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, command_group&& rhs) {
+        lhs.add_commands(std::move(rhs));
+        return lhs;
+    }
+
+    inline command_group& operator | (command_group& lhs, const error& rhs) {
+        lhs.set_error(rhs);
+        return lhs;
+    }
+    inline command_group& operator | (command_group& lhs, error&& rhs) {
+        lhs.set_error(std::move(rhs));
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, const error& rhs) {
+        lhs.set_error(rhs);
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, error&& rhs) {
+        lhs.set_error(std::move(rhs));
+        return lhs;
+    }
+
+    inline command_group& operator | (command_group& lhs, const help& rhs) {
+        lhs.set_help(rhs);
+        return lhs;
+    }
+    inline command_group& operator | (command_group& lhs, help&& rhs) {
+        lhs.set_help(std::move(rhs));
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, const help& rhs) {
+        lhs.set_help(rhs);
+        return lhs;
+    }
+    inline command_group operator | (command_group&& lhs, help&& rhs) {
+        lhs.set_help(std::move(rhs));
+        return lhs;
+    }
+
+    inline int default_error_callback(context& p_context) {
+        if (p_context.current_command_group.has_value()) {
+            std::cout << default_help_string(
+                p_context,
+                p_context.current_command_group.value()) << "\n";
         }
 
-        inline command_group operator | (command& lhs, const error& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_error(rhs);
-            return group;
-        }
-        inline command_group operator | (command& lhs, error&& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_error(std::move(rhs));
-            return group;
-        }
-        inline command_group operator | (command&& lhs, const error& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_error(rhs);
-            return group;
-        }
-        inline command_group operator | (command&& lhs, error&& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_error(std::move(rhs));
-            return group;
+        return 0;
+    }
+
+    inline std::string default_help_string(
+        const context& p_context,
+        const command_group& p_command_group)
+    {
+        auto result = std::string{ "Usage: " };
+        result += !p_context.current_path.empty() ? p_context.current_path.back() + " " : "";
+
+        auto* help_handler = impl::get_help_handler(p_context, p_command_group);
+
+        const size_t pre_command_count =
+            p_command_group.commands.size() +
+            (help_handler && help_handler->has_names()) ? size_t{ 1 } : size_t{ 0 };
+
+        if (pre_command_count == 0) {
+            return result;
         }
 
-        inline command_group operator | (command& lhs, const help& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_help(rhs);
-            return group;
-        }
-        inline command_group operator | (command& lhs, help&& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_help(std::move(rhs));
-            return group;
-        }
-        inline command_group operator | (command&& lhs, const help& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_help(rhs);
-            return group;
-        }
-        inline command_group operator | (command&& lhs, help&& rhs) {
-            auto group = command_group{};
-            group.add_command(lhs);
-            group.set_help(std::move(rhs));
-            return group;
-        }
+        size_t min_command_column = 0;
+        std::vector<std::pair<std::string, std::string>> command_rows = {};
+        command_rows.reserve(pre_command_count);
 
-        inline command_group& operator | (command_group& lhs, const command& rhs) {
-            lhs.add_command(rhs);
-            return lhs;
-        }
-        inline command_group& operator | (command_group& lhs, command&& rhs) {
-            lhs.add_command(std::move(rhs));
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, const command& rhs) {
-            lhs.add_command(rhs);
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, command&& rhs) {
-            lhs.add_command(std::move(rhs));
-            return lhs;
-        }
-
-        inline command_group& operator | (command_group& lhs, const command_group& rhs) {
-            lhs.add_commands(rhs);
-            return lhs;
-        }
-        inline command_group& operator | (command_group& lhs, command_group&& rhs) {
-            lhs.add_commands(std::move(rhs));
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, const command_group& rhs) {
-            lhs.add_commands(rhs);
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, command_group&& rhs) {
-            lhs.add_commands(std::move(rhs));
-            return lhs;
-        }
-
-        inline command_group& operator | (command_group& lhs, const error& rhs) {
-            lhs.set_error(rhs);
-            return lhs;
-        }
-        inline command_group& operator | (command_group& lhs, error&& rhs) {
-            lhs.set_error(std::move(rhs));
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, const error& rhs) {
-            lhs.set_error(rhs);
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, error&& rhs) {
-            lhs.set_error(std::move(rhs));
-            return lhs;
-        }
-
-        inline command_group& operator | (command_group& lhs, const help& rhs) {
-            lhs.set_help(rhs);
-            return lhs;
-        }
-        inline command_group& operator | (command_group& lhs, help&& rhs) {
-            lhs.set_help(std::move(rhs));
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, const help& rhs) {
-            lhs.set_help(rhs);
-            return lhs;
-        }
-        inline command_group operator | (command_group&& lhs, help&& rhs) {
-            lhs.set_help(std::move(rhs));
-            return lhs;
-        }
-
-        inline std::string default_help_string(
-            const context& p_context,
-            const command_group& p_command_group)
-        {
-            auto result = std::string{ "Usage: " };
-            result += !p_context.current_path.empty() ? p_context.current_path.back() + " " : "";
-
-            auto* help = impl::get_help(p_context, p_command_group);
-
-            const size_t pre_command_count =
-                p_command_group.commands.size() +
-                (help && help->has_names()) ? size_t{ 1 } : size_t{ 0 };
-
-            if (pre_command_count == 0) {
-                return result;
-            }
-
-            size_t min_command_column = 0;
-            std::vector<std::pair<std::string, std::string>> command_rows = {};
-            command_rows.reserve(pre_command_count);
-
-            auto create_command_name = [](const std::vector<std::string>& names) {
-                std::string result;
-                for (const auto& name : names) {
-                    if (name.empty()) {
-                        continue;
-                    }
-                    if (!result.empty()) {
-                        result += "|";
-                    }
-                    result += name;
-                }
-
-                return result;
-            };
-
-            auto add_command_rows = [&](const std::vector<std::string>& names, const std::string& description) {
-                const std::string name = create_command_name(names);
+        auto create_command_name = [](const std::vector<std::string>& names) {
+            std::string result;
+            for (const auto& name : names) {
                 if (name.empty()) {
-                    return;
+                    continue;
                 }
-                command_rows.emplace_back(name, description);
-                min_command_column = std::max(min_command_column, name.size());
-            };
-
-            if (help) {
-                add_command_rows(help->names, help->description);
-            }
-            for (const auto& command : p_command_group.commands) {
-                add_command_rows(command.names, command.description);
-            }
-
-            if (command_rows.empty()) {
-                return result;
-            }
-
-            result += "[command] [command-options]\n\nCommands:\n";
-
-            for (const auto& command_row : command_rows) {
-                const auto& [name, description] = command_row;
-                result += "  " + name;
-                const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
-                result += std::string(tab_width, ' ');
-                result += description + "\n";
+                if (!result.empty()) {
+                    result += "|";
+                }
+                result += name;
             }
 
             return result;
+        };
+
+        auto add_command_rows = [&](const std::vector<std::string>& names, const std::string& description) {
+            const std::string name = create_command_name(names);
+            if (name.empty()) {
+                return;
+            }
+            command_rows.emplace_back(name, description);
+            min_command_column = std::max(min_command_column, name.size());
+        };
+
+        if (help_handler) {
+            add_command_rows(help_handler->names, help_handler->description);
         }
+        for (const auto& command : p_command_group.commands) {
+            add_command_rows(command.names, command.description);
+        }
+
+        if (command_rows.empty()) {
+            return result;
+        }
+
+        result += "[command] [command-options]\n\nCommands:\n";
+
+        for (const auto& command_row : command_rows) {
+            const auto& [name, description] = command_row;
+            result += "  " + name;
+            const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
+            result += std::string(tab_width, ' ');
+            result += description + "\n";
+        }
+
+        return result;
+    }
 
 }
 
