@@ -14,8 +14,8 @@ jobs:
             c_compiler: gcc-12
             cpp_compiler: g++-12
           - compiler: clang
-            c_compiler: clang-12
-            cpp_compiler: clang++-12
+            c_compiler: clang-13
+            cpp_compiler: clang++-13
           - build_type: Debug
             output_name_postfix: _d
             
@@ -30,15 +30,15 @@ jobs:
       - name: Install packages
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/focal llvm-toolchain-focal-12 main' -y
+          sudo add-apt-repository 'deb http://apt.llvm.org/focal llvm-toolchain-focal-13 main' -y
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo apt update
-          sudo apt install build-essential gcc-12 g++-12 clang-12 lcov valgrind
+          sudo apt install build-essential gcc-12 g++-12 clang-13 lcov valgrind
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 90
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 90
           sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-12 90  
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 90
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 90
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 90
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 90
           
       - name: Check versions
         run: |
