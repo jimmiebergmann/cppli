@@ -28,6 +28,7 @@
 
 #include <string>
 #include <string_view>
+#include <cstring>
 #include <vector>
 #include <optional>
 #include <algorithm>
@@ -48,6 +49,13 @@ namespace cppli {
     using error_callback = std::function<void(context&, std::string)>;
     using help_callback = std::function<int(context&)>;
     using command_callback = std::function<int(context&)>;;
+
+    namespace parse_codes {
+        static constexpr int successful = 0;
+        static constexpr int missing_command = 1;
+        static constexpr int missing_argument = 2;
+        static constexpr int unknown_command = 3;
+    }
 
     context& operator | (context& lhs, const error& rhs);
     context& operator | (context& lhs, error&& rhs);
@@ -374,9 +382,21 @@ namespace cppli {
         }
 
         inline context& context::move_to_next_arg() {
+            if (argc <= 0) {
+                return *this;
+            }
+            first_arg_is_path = false;
             --argc;
             ++argv;
-            first_arg_is_path = false;
+
+            while (argc > 0) {
+                if (argv[0] != nullptr && std::strlen(argv[0]) > 0) {
+                    break;
+                }
+                --argc;
+                ++argv;
+            }
+
             return *this;
         }
 
@@ -436,7 +456,7 @@ namespace cppli {
             auto* help = impl::get_help(p_context, *this);
 
             if (commands.empty() && (help == nullptr || !help->has_names())) {
-                return 0;
+                return parse_codes::unknown_command;
             }
 
             p_context.current_command_group = *this;
@@ -446,23 +466,20 @@ namespace cppli {
 
             if (p_context.argc < 1) {
                 error_callback(p_context, "Missing command.");
-                return 1;
+                return parse_codes::missing_command;
             }
 
             if (p_context.first_arg_is_path) {
                 auto program_name = impl::parse_program_name(p_context.argv[0]);
-                if (program_name.empty()) {
-                    error_callback(p_context, "Expecting program path as first parameter.");
-                    return 1;
+                if (!program_name.empty()) {
+                    p_context.current_path.emplace_back(program_name);
                 }
-
-                p_context.current_path.emplace_back(program_name);
                 p_context.move_to_next_arg();
             }
 
             if (p_context.argc < 1) {
                 error_callback(p_context, "Missing command.");
-                return 1;
+                return parse_codes::missing_command;
             }
 
             auto find_command = [&](std::string_view name) -> const command* {
@@ -482,7 +499,7 @@ namespace cppli {
             {
                 if (help == nullptr || !help->has_names()) {
                     error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
-                    return 1;
+                    return parse_codes::unknown_command;
                 }
 
                 auto help_it = std::find_if(help->names.begin(), help->names.end(),
@@ -490,16 +507,16 @@ namespace cppli {
 
                 if (help_it == help->names.end()) {
                     error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
-                    return 1;
+                    return parse_codes::unknown_command;
                 }
 
-                return help->callback ? help->callback(p_context) : 0;
+                return help->callback ? help->callback(p_context) : parse_codes::successful;
             }
 
             p_context.current_path.emplace_back(command_name);
             p_context.move_to_next_arg();
 
-            return command->callback ? command->callback(p_context) : 0;
+            return command->callback ? command->callback(p_context) : parse_codes::successful;
         }
 
         inline command_group& command_group::add_command(const command& p_command) {

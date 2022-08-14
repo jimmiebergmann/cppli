@@ -6,16 +6,14 @@ if(POLICY CMP0092)
   cmake_policy(SET CMP0092 NEW)
 endif()
 
-project (MoltenEditor)
-
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
   find_package(Threads)
 endif()
 
 set(root_dir "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-set(example_dir "${root_dir}/examples")
-set(this_example_dir "${example_dir}/readme_example_cpp17_2")
+set(examples_dir "${root_dir}/examples")
+set(this_example_dir "${examples_dir}/readme_example_cpp17_2")
 set(include_dir "${root_dir}/include")
 
 file(GLOB_RECURSE cppli_header_file "${include_dir}/cppli/*.hpp")

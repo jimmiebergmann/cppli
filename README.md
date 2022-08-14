@@ -1,9 +1,9 @@
 # c[pp]li
-![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)  
+![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE)  
 Single header C++17 CLI parser library.
 
 # Example
-Following example is from examples/readme_example_cpp20. See other examples for C++17 syntax.
+Following example is from examples/readme_example_cpp20. See other [examples](https://github.com/jimmiebergmann/cppli/blob/master/examples) for C++17 syntax.
 ```cpp
 #include "cppli/cppli.hpp"
 
@@ -42,7 +42,7 @@ int new_project_callback(cli::context&) {
     return 0;
 }
 ```
-## Execution
+### Execution
 ```
 > readme_example_cpp20 --help
 ```
@@ -54,4 +54,17 @@ Commands:
   new             Create new project.
   open            Open project.
   build|yolo      Build project.
+```
+
+# Usage
+Add [include](https://github.com/jimmiebergmann/cppli/blob/master/include) to your project's include directories and `#include "cppli/cppli.hpp"`. 
+All files are licensed under `MIT license`, see the [LICENSE](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE) for more information.
+
+# Build examples and tests
+```
+git clone --recurse-submodules https://github.com/jimmiebergmann/cppli.git
+mkdir cppli/build
+cd cppli/build
+cmake ..
+cmake --build . --config Release
 ```
