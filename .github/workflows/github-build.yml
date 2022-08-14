@@ -61,4 +61,3 @@ jobs:
         if: ${{ matrix.compiler == 'g++' && matrix.build_type == 'Debug' }}
         with:
           gcov: true
-          gcov_include: include/cppli/cppli.hpp

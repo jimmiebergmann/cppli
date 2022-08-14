@@ -1,5 +1,5 @@
 # c[pp]li
-![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE)  
+![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE) [![Codecov code coverage](https://img.shields.io/codecov/c/github/jimmiebergmann/cppli/master?label=Codecov&logo=Codecov)](https://codecov.io/gh/jimmiebergmann/cppli)  
 Single header C++17 CLI parser library.
 
 # Example
