@@ -106,7 +106,7 @@ TEST(command_group, single_command)
 
         EXPECT_EQ(context.argc, 2);
         EXPECT_EQ(context.argv, args.data());
-        EXPECT_EQ(group.parse(context), cli::parse_codes::missing_command);
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
         EXPECT_FALSE(triggered_callback);
     }
 
@@ -141,8 +141,8 @@ TEST(command_group, single_command)
 
         EXPECT_EQ(context.argc, 3);
         EXPECT_EQ(context.argv, args.data());
-        EXPECT_EQ(group.parse(context), 123);
-        EXPECT_TRUE(triggered_callback);
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
+        EXPECT_FALSE(triggered_callback);
     }
 }
 
@@ -200,7 +200,7 @@ TEST(command_group, multiple_commands)
 
         EXPECT_EQ(context.argc, 2);
         EXPECT_EQ(context.argv, args.data());
-        EXPECT_EQ(group.parse(context), cli::parse_codes::missing_command);
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
         EXPECT_TRUE(check_triggered_callbacks(false, false, false));
     }
 
@@ -257,8 +257,8 @@ TEST(command_group, multiple_commands)
 
         EXPECT_EQ(context.argc, 3);
         EXPECT_EQ(context.argv, args.data());
-        EXPECT_EQ(group.parse(context), 300);
-        EXPECT_TRUE(check_triggered_callbacks(false, false, true));
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
+        EXPECT_TRUE(check_triggered_callbacks(false, false, false));
     }
 }
 
