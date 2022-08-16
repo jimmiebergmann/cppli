@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <functional>
 #include <utility>
+#include <charconv>
 #include <iostream>
 
 namespace cppli {
@@ -43,8 +44,14 @@ namespace cppli {
     struct help;
     struct default_help;
     struct context;
-    struct command;
+
+    struct command; 
     struct command_group;
+     
+    template<typename T> struct option;
+    struct option_group;
+
+    class option_proxy;
 
     using error_callback = std::function<void(context&, std::string)>;
     using help_callback = std::function<int(context&)>;
@@ -53,54 +60,74 @@ namespace cppli {
     namespace parse_codes {
         static constexpr int successful = 0;
         static constexpr int missing_command = 1;
-        static constexpr int missing_argument = 2;
-        static constexpr int unknown_command = 3;
+        static constexpr int unknown_command = 2;
+        static constexpr int missing_option = 3;     
+        static constexpr int invalid_option = 4;
+        static constexpr int unknown_option = 5;
     }
 
-    context& operator | (context& lhs, const error& rhs);
-    context& operator | (context& lhs, error&& rhs);
+    context operator | (const context& lhs, const error& rhs);
+    context operator | (const context& lhs, error&& rhs);
     context operator | (context&& lhs, const error& rhs);
     context operator | (context&& lhs, error&& rhs);
 
-    context& operator | (context& lhs, const help& rhs);
-    context& operator | (context& lhs, help&& rhs);
+    context operator | (const context& lhs, const help& rhs);
+    context operator | (const context& lhs, help&& rhs);
     context operator | (context&& lhs, const help& rhs);
     context operator | (context&& lhs, help&& rhs);
 
-    command_group operator | (command& lhs, const command& rhs);
-    command_group operator | (command& lhs, command&& rhs);
+    command_group operator | (const command& lhs, const command& rhs);
+    command_group operator | (const command& lhs, command&& rhs);
     command_group operator | (command&& lhs, const command& rhs);
     command_group operator | (command&& lhs, command&& rhs);
 
-    command_group operator | (command& lhs, const error& rhs);
-    command_group operator | (command& lhs, error&& rhs);
+    command_group operator | (const command& lhs, const error& rhs);
+    command_group operator | (const command& lhs, error&& rhs);
     command_group operator | (command&& lhs, const error& rhs);
     command_group operator | (command&& lhs, error&& rhs);
 
-    command_group operator | (command& lhs, const help& rhs);
-    command_group operator | (command& lhs, help&& rhs);
+    command_group operator | (const command& lhs, const help& rhs);
+    command_group operator | (const command& lhs, help&& rhs);
     command_group operator | (command&& lhs, const help& rhs);
     command_group operator | (command&& lhs, help&& rhs);
 
-    command_group& operator | (command_group& lhs, const command& rhs);
-    command_group& operator | (command_group& lhs, command&& rhs);
+    command_group operator | (const command_group& lhs, const command& rhs);
+    command_group operator | (const command_group& lhs, command&& rhs);
     command_group operator | (command_group&& lhs, const command& rhs);
     command_group operator | (command_group&& lhs, command&& rhs);
 
-    command_group& operator | (command_group& lhs, const command_group& rhs);
-    command_group& operator | (command_group& lhs, command_group&& rhs);
+    command_group operator | (const command_group& lhs, const command_group& rhs);
+    command_group operator | (const command_group& lhs, command_group&& rhs);
     command_group operator | (command_group&& lhs, const command_group& rhs);
     command_group operator | (command_group&& lhs, command_group&& rhs);
 
-    command_group& operator | (command_group& lhs, const error& rhs);
-    command_group& operator | (command_group& lhs, error&& rhs);
+    command_group operator | (const command_group& lhs, const error& rhs);
+    command_group operator | (const command_group& lhs, error&& rhs);
     command_group operator | (command_group&& lhs, const error& rhs);
     command_group operator | (command_group&& lhs, error&& rhs);
 
-    command_group& operator | (command_group& lhs, const help& rhs);
-    command_group& operator | (command_group& lhs, help&& rhs);
+    command_group operator | (const command_group& lhs, const help& rhs);
+    command_group operator | (const command_group& lhs, help&& rhs);
     command_group operator | (command_group&& lhs, const help& rhs);
     command_group operator | (command_group&& lhs, help&& rhs);
+
+    template<typename T, typename U>
+    option_group operator | (const option<T>& lhs, const option<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (const option<T>& lhs, option<U>&& rhs);
+    template<typename T, typename U>
+    option_group operator | (option<T>&& lhs, const option<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (option<T>&& lhs, option<U>&& rhs);
+
+    template<typename T>
+    option_group operator | (const option_group& lhs, const option<T>& rhs);
+    template<typename T>
+    option_group operator | (const option_group& lhs, option<T>&& rhs);
+    template<typename T>
+    option_group operator | (option_group&& lhs, const option<T>& rhs);
+    template<typename T>
+    option_group operator | (option_group&& lhs, option<T>&& rhs);
  
 }
 
@@ -115,6 +142,33 @@ namespace cppli::impl {
 
     template<typename T>
     const help* get_help_handler(const context& p_context, const T& p_other);
+
+    using set_value_callback = std::function<bool(std::string_view)>;
+
+    template<typename T>
+    set_value_callback get_set_value_callback(T& p_value);
+
+    template <typename, template <typename, typename...> typename>
+    struct is_template_instance : public std::false_type {};
+
+    template <typename...Ts, template <typename, typename...> typename U>
+    struct is_template_instance<U<Ts...>, U> : public std::true_type {};
+
+    template <typename T, template <typename, typename...> typename U>
+    constexpr bool is_template_instance_v = is_template_instance<T, U>::value;
+
+    template<typename T>
+    struct raw_option_type {
+        using type = T;
+    };
+
+    template<typename T>
+    struct raw_option_type<std::optional<T>> {
+        using type = T;
+    };
+
+    template<typename T>
+    using raw_option_type_t = typename raw_option_type<T>::type;
 
 }
 
@@ -190,6 +244,12 @@ namespace cppli {
         context& set_argc(int p_argc);
         context& set_argv(char** p_argv);
 
+        context& set_error(const error& p_error);
+        context& set_error(error&& p_error);
+
+        context& set_help(const help& p_help);
+        context& set_help(help&& p_help);
+
         context& move_to_next_arg();
 
     };
@@ -222,8 +282,8 @@ namespace cppli {
     struct command_group {
 
         std::vector<command> commands = {};
-        std::optional<error> error_handler;
-        std::optional<help> help_handler;
+        std::optional<error> error_handler = {};
+        std::optional<help> help_handler = {};
 
         int parse(context& p_context) const;
 
@@ -238,6 +298,61 @@ namespace cppli {
 
         command_group& set_help(const help& p_help);
         command_group& set_help(help&& p_help);
+
+    };
+
+
+    template<typename T>
+    struct option {
+        T& value;
+        std::string name = {};
+    };
+
+
+    class option_proxy {
+
+    public:
+
+        std::string name = {};
+
+        template<typename T>
+        option_proxy(option<T>& p_option);
+        template<typename T>
+        option_proxy(option<T>&& p_option);
+
+        option_proxy(const option_proxy&) = default;
+        option_proxy(option_proxy&&) = default;
+        option_proxy& operator = (const option_proxy&) = default;
+        option_proxy& operator = (option_proxy&&) = default;
+
+        bool set_value(std::string_view p_value) const;
+
+    private:
+
+        impl::set_value_callback m_set_value_callback;
+
+    };
+
+
+    struct option_group {
+
+        std::vector<option_proxy> required_options = {};
+        std::vector<option_proxy> optional_options = {};
+        std::optional<error> error_handler = {};
+        std::optional<help> help_handler = {};
+
+        int parse(context& p_context) const;
+
+        template<typename T>
+        option_group& add_option(const option<T>& p_option);
+        template<typename T>
+        option_group& add_option(option<T>&& p_option);
+
+        option_group& set_error(const error& p_error);
+        option_group& set_error(error&& p_error);
+
+        option_group& set_help(const help& p_help);
+        option_group& set_help(help&& p_help);
 
     };
 
@@ -282,6 +397,47 @@ namespace cppli::impl {
             p_context.help_handler.has_value() ?
                 &p_context.help_handler.value() :
                 nullptr;
+    }
+
+    template<typename T>
+    inline set_value_callback get_set_value_callback(T& p_value) {
+        return [&p_value](std::string_view string) mutable {
+            static_assert(!std::is_const_v<T>, "Option value cannot be const.");
+            static_assert(std::is_reference_v<decltype(p_value)>, "Option value must be a reference.");
+
+            using type = typename impl::raw_option_type_t<std::decay_t<decltype(p_value)>>;
+
+            constexpr bool is_bool = std::is_same_v<type, bool> == true;
+            constexpr bool is_number = is_bool == false && (std::is_integral_v<type> == true || std::is_floating_point_v<type> == true);
+
+            if constexpr (is_number == true) {
+                type value{};
+                const auto result = std::from_chars(string.data(), string.data() + string.size(), value).ec == std::errc();
+                if (result) {
+                    p_value = value;
+                }
+                return result;
+            }
+            else if constexpr (is_bool == true) {
+                auto string_copy = std::string{ string };
+                std::transform(string_copy.begin(), string_copy.end(), string_copy.begin(), &std::tolower);
+
+                if (string_copy == "true" || string_copy == "1") {
+                    p_value = true;
+                    return true;
+                }
+                if (string_copy == "false" || string_copy == "0") {
+                    p_value = false;
+                    return true;
+                }
+
+                return false;
+            }
+            else {
+                p_value = string;
+                return true;
+            }
+        };
     }
 
 }
@@ -458,6 +614,24 @@ namespace cppli {
         return *this;
     }
 
+    inline context& context::set_error(const error& p_error) {
+        error_handler = p_error;
+        return *this;
+    }
+    inline context& context::set_error(error&& p_error) {
+        error_handler = std::move(p_error);
+        return *this;
+    }
+
+    inline context& context::set_help(const help& p_help) {
+        help_handler = p_help;
+        return *this;
+    }
+    inline context& context::set_help(help&& p_help) {
+        help_handler = std::move(p_help);
+        return *this;
+    }
+
     inline context& context::move_to_next_arg() {
         if (argc <= 0) {
             return *this;
@@ -467,7 +641,7 @@ namespace cppli {
         ++argv;
 
         while (argc > 0) {
-            if (argv[0] != nullptr && std::strlen(argv[0]) > 0) {
+            if (argv[0] != nullptr) {
                 break;
             }
             --argc;
@@ -574,7 +748,7 @@ namespace cppli {
         auto command = find_command(command_name);
         if (command == nullptr) {
             if (current_help_handler == nullptr || !current_help_handler->has_names()) {
-                error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
+                error_callback(p_context, "Unknown command '" + std::string{ command_name } + "'.");
                 return parse_codes::unknown_command;
             }
 
@@ -582,7 +756,7 @@ namespace cppli {
                 [&command_name](const auto& name) { return name == command_name; });
 
             if (help_it == current_help_handler->names.end()) {
-                error_callback(p_context, std::string{ "Unknown command '" } + std::string{ command_name } + "'.");
+                error_callback(p_context, "Unknown command '" + std::string{ command_name } + "'.");
                 return parse_codes::unknown_command;
             }
 
@@ -659,50 +833,171 @@ namespace cppli {
     }
 
 
-    // Context operators.
-    inline context& operator | (context& lhs, const error& rhs) {
-        lhs.error_handler = rhs;
-        return lhs;
+    // Option proxy
+    template<typename T>
+    inline option_proxy::option_proxy(option<T>& p_option) :
+        name(p_option.name),
+        m_set_value_callback(impl::get_set_value_callback<T>(p_option.value))
+    {}
+
+    template<typename T>
+    inline option_proxy::option_proxy(option<T>&& p_option) :
+        name(std::move(p_option.name)),
+        m_set_value_callback(impl::get_set_value_callback<T>(p_option.value))
+    {}
+
+    inline bool option_proxy::set_value(std::string_view p_value) const {
+        if (!m_set_value_callback) {
+            return false;
+        }
+        return m_set_value_callback(p_value);
     }
-    inline context& operator | (context& lhs, error&& rhs) {
-        lhs.error_handler = std::move(rhs);
-        return lhs;
+
+    
+    // Option group.
+    inline int option_group::parse(context& p_context) const {
+        auto* current_error_handler = impl::get_error_handler(p_context, *this);
+        auto error_callback = impl::get_error_callback(current_error_handler);
+
+        for (auto& option : required_options) {
+            if (p_context.argc <= 0) {
+                error_callback(p_context, "Missing option '" + option.name + "'.");
+                return parse_codes::missing_option;
+            }
+
+            const auto opt_value = std::string_view{ p_context.argv[0] };
+
+            if (!option.set_value(opt_value)) {
+                error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + option.name + "'.");
+                return parse_codes::invalid_option;
+            }
+
+            p_context.move_to_next_arg();
+        }
+
+        while (p_context.argc > 0) {
+            const auto opt_name = std::string_view{ p_context.argv[0] };
+
+            auto optional_it = std::find_if(optional_options.begin(), optional_options.end(), [&opt_name](const auto& opt) {
+                return opt.name == opt_name;
+            });
+
+            if (optional_it != optional_options.end()) {
+                auto& option = *optional_it;
+                p_context.move_to_next_arg();
+
+                if (p_context.argc <= 0) {
+                    error_callback(p_context, "Missing value of option '" + option.name + "'.");
+                    return parse_codes::missing_option;
+                }
+
+                const auto opt_value = std::string_view{ p_context.argv[0] };
+                
+                if (!option.set_value(opt_value)) {
+                    error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + option.name + "'.");
+                    return parse_codes::invalid_option;
+                }
+
+                p_context.move_to_next_arg();
+                continue;
+            }
+
+            error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
+            return parse_codes::unknown_option;
+        }
+
+        return parse_codes::successful;
+    }
+
+    template<typename T>
+    option_group& option_group::add_option(const option<T>& p_option) {
+        if constexpr (impl::is_template_instance_v<T, std::optional> == true) {
+            optional_options.emplace_back(p_option);
+        }
+        else {
+            required_options.emplace_back(p_option);
+        }
+        
+        return *this;
+    }
+    template<typename T>
+    option_group& option_group::add_option(option<T>&& p_option) {
+        if constexpr (impl::is_template_instance_v<T, std::optional> == true) {
+            optional_options.emplace_back(p_option);
+        }
+        else {
+            required_options.emplace_back(p_option);
+        }
+        return *this;
+    }
+
+    inline option_group& option_group::set_error(const error& p_error) {
+        error_handler = p_error;
+        return *this;
+    }
+    inline option_group& option_group::set_error(error&& p_error) {
+        error_handler = std::move(p_error);
+        return *this;
+    }
+
+    inline option_group& option_group::set_help(const help& p_help) {
+        help_handler = p_help;
+        return *this;
+    }
+    inline option_group& option_group::set_help(help&& p_help) {
+        help_handler = std::move(p_help);
+        return *this;
+    }
+
+
+    // Context operators.
+    inline context operator | (const context& lhs, const error& rhs) {
+        auto new_context = context{ lhs };
+        new_context.set_error(rhs);
+        return new_context;
+    }
+    inline context operator | (const context& lhs, error&& rhs) {
+        auto new_context = context{ lhs };
+        new_context.set_error(std::move(rhs));
+        return new_context;
     }
     inline context operator | (context&& lhs, const error& rhs) {
-        lhs.error_handler = rhs;
+        lhs.set_error(rhs);
         return lhs;
     }
     inline context operator | (context&& lhs, error&& rhs) {
-        lhs.error_handler = std::move(rhs);
+        lhs.set_error(std::move(rhs));
         return lhs;
     }
 
-    inline context& operator | (context& lhs, const help& rhs) {
-        lhs.help_handler = rhs;
-        return lhs;
+    inline context operator | (const context& lhs, const help& rhs) {
+        auto new_context = context{ lhs };
+        new_context.set_help(rhs);
+        return new_context;
     }
-    inline context& operator | (context& lhs, help&& rhs) {
-        lhs.help_handler = std::move(rhs);
-        return lhs;
+    inline context operator | (const context& lhs, help&& rhs) {
+        auto new_context = context{ lhs };
+        new_context.set_help(std::move(rhs));
+        return new_context;
     }
     inline context operator | (context&& lhs, const help& rhs) {
-        lhs.help_handler = rhs;
+        lhs.set_help(rhs);
         return lhs;
     }
     inline context operator | (context&& lhs, help&& rhs) {
-        lhs.help_handler = std::move(rhs);
+        lhs.set_help(std::move(rhs));
         return lhs;
     }
 
 
     // Command operators.
-    inline command_group operator | (command& lhs, const command& rhs) {
+    inline command_group operator | (const command& lhs, const command& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.add_command(rhs);
         return group;
     }
-    inline command_group operator | (command& lhs, command&& rhs) {
+    inline command_group operator | (const command& lhs, command&& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.add_command(std::move(rhs));
@@ -721,13 +1016,13 @@ namespace cppli {
         return group;
     }
 
-    inline command_group operator | (command& lhs, const error& rhs) {
+    inline command_group operator | (const command& lhs, const error& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.set_error(rhs);
         return group;
     }
-    inline command_group operator | (command& lhs, error&& rhs) {
+    inline command_group operator | (const command& lhs, error&& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.set_error(std::move(rhs));
@@ -746,13 +1041,13 @@ namespace cppli {
         return group;
     }
 
-    inline command_group operator | (command& lhs, const help& rhs) {
+    inline command_group operator | (const command& lhs, const help& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.set_help(rhs);
         return group;
     }
-    inline command_group operator | (command& lhs, help&& rhs) {
+    inline command_group operator | (const command& lhs, help&& rhs) {
         auto group = command_group{};
         group.add_command(lhs);
         group.set_help(std::move(rhs));
@@ -771,13 +1066,15 @@ namespace cppli {
         return group;
     }
 
-    inline command_group& operator | (command_group& lhs, const command& rhs) {
-        lhs.add_command(rhs);
-        return lhs;
+    inline command_group operator | (const command_group& lhs, const command& rhs) {
+        auto group = command_group{ lhs };
+        group.add_command(rhs);
+        return group;
     }
-    inline command_group& operator | (command_group& lhs, command&& rhs) {
-        lhs.add_command(std::move(rhs));
-        return lhs;
+    inline command_group operator | (const command_group& lhs, command&& rhs) {
+        auto group = command_group{ lhs };
+        group.add_command(std::move(rhs));
+        return group;
     }
     inline command_group operator | (command_group&& lhs, const command& rhs) {
         lhs.add_command(rhs);
@@ -788,13 +1085,15 @@ namespace cppli {
         return lhs;
     }
 
-    inline command_group& operator | (command_group& lhs, const command_group& rhs) {
-        lhs.add_commands(rhs);
-        return lhs;
+    inline command_group operator | (const command_group& lhs, const command_group& rhs) {
+        auto group = command_group{ lhs };
+        group.add_commands(rhs);
+        return group;
     }
-    inline command_group& operator | (command_group& lhs, command_group&& rhs) {
-        lhs.add_commands(std::move(rhs));
-        return lhs;
+    inline command_group operator | (const command_group& lhs, command_group&& rhs) {
+        auto group = command_group{ lhs };
+        group.add_commands(std::move(rhs));
+        return group;
     }
     inline command_group operator | (command_group&& lhs, const command_group& rhs) {
         lhs.add_commands(rhs);
@@ -805,13 +1104,15 @@ namespace cppli {
         return lhs;
     }
 
-    inline command_group& operator | (command_group& lhs, const error& rhs) {
-        lhs.set_error(rhs);
-        return lhs;
+    inline command_group operator | (const command_group& lhs, const error& rhs) {
+        auto group = command_group{ lhs };
+        group.set_error(rhs);
+        return group;
     }
-    inline command_group& operator | (command_group& lhs, error&& rhs) {
-        lhs.set_error(std::move(rhs));
-        return lhs;
+    inline command_group operator | (const command_group& lhs, error&& rhs) {
+        auto group = command_group{ lhs };
+        group.set_error(std::move(rhs));
+        return group;
     }
     inline command_group operator | (command_group&& lhs, const error& rhs) {
         lhs.set_error(rhs);
@@ -822,13 +1123,15 @@ namespace cppli {
         return lhs;
     }
 
-    inline command_group& operator | (command_group& lhs, const help& rhs) {
-        lhs.set_help(rhs);
-        return lhs;
+    inline command_group operator | (const command_group& lhs, const help& rhs) {
+        auto group = command_group{ lhs };
+        group.set_help(rhs);
+        return group;
     }
-    inline command_group& operator | (command_group& lhs, help&& rhs) {
-        lhs.set_help(std::move(rhs));
-        return lhs;
+    inline command_group operator | (const command_group& lhs, help&& rhs) {
+        auto group = command_group{ lhs };
+        group.set_help(std::move(rhs));
+        return group;
     }
     inline command_group operator | (command_group&& lhs, const help& rhs) {
         lhs.set_help(rhs);
@@ -836,6 +1139,59 @@ namespace cppli {
     }
     inline command_group operator | (command_group&& lhs, help&& rhs) {
         lhs.set_help(std::move(rhs));
+        return lhs;
+    }
+
+    template<typename T, typename U>
+    inline option_group operator | (const option<T>& lhs, const option<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (const option<T>& lhs, option<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option<T>&& lhs, const option<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option<T>&& lhs, option<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(std::move(rhs));
+        return group;
+    }
+
+
+    template<typename T>
+    inline option_group operator | (const option_group& lhs, const option<T>& rhs) {
+        auto group = option_group{ lhs };
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T>
+    inline option_group operator | (const option_group& lhs, option<T>&& rhs) {
+        auto group = option_group{ lhs };
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T>
+    inline option_group operator | (option_group&& lhs, const option<T>& rhs) {
+        lhs.add_option(rhs);
+        return lhs;
+    }
+    template<typename T>
+    inline option_group operator | (option_group&& lhs, option<T>&& rhs) {
+        lhs.add_option(std::move(rhs));
         return lhs;
     }
 
