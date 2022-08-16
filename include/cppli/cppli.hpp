@@ -28,7 +28,6 @@
 
 #include <string>
 #include <string_view>
-#include <cstring>
 #include <vector>
 #include <optional>
 #include <algorithm>
@@ -36,6 +35,8 @@
 #include <utility>
 #include <charconv>
 #include <iostream>
+#include <cstring>
+#include <cctype>
 
 namespace cppli {
 
@@ -420,7 +421,9 @@ namespace cppli::impl {
             }
             else if constexpr (is_bool == true) {
                 auto string_copy = std::string{ string };
-                std::transform(string_copy.begin(), string_copy.end(), string_copy.begin(), &std::tolower);
+                std::transform(string_copy.begin(), string_copy.end(), string_copy.begin(), [](const auto c) {
+                    return static_cast<decltype(c)>(std::tolower(static_cast<int>(c)));
+                });
 
                 if (string_copy == "true" || string_copy == "1") {
                     p_value = true;
