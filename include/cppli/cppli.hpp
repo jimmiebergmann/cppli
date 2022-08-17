@@ -50,9 +50,11 @@ namespace cppli {
     struct command_group;
      
     template<typename T> struct option;
+    template<typename T> struct option_flag;
     struct option_group;
 
     class option_proxy;
+    class option_flag_proxy;
 
     using error_callback = std::function<void(context&, std::string)>;
     using help_callback = std::function<int(context&)>;
@@ -145,9 +147,13 @@ namespace cppli::impl {
     const help* get_help_handler(const context& p_context, const T& p_other);
 
     using set_value_callback = std::function<bool(std::string_view)>;
+    using set_flag_callback = std::function<void()>;
 
     template<typename T>
-    set_value_callback get_set_value_callback(T& p_value);
+    set_value_callback create_set_value_callback(T& p_value);
+
+    template<typename T>
+    set_flag_callback create_set_flag_callback(T& p_value);
 
     template <typename, template <typename, typename...> typename>
     struct is_template_instance : public std::false_type {};
@@ -335,10 +341,42 @@ namespace cppli {
     };
 
 
+    template<typename T = bool>
+    struct option_flag {
+        T& value;
+        std::vector<std::string> names = {};
+    };
+
+
+    class option_flag_proxy {
+
+    public:
+
+        std::vector<std::string> names = {};
+
+        template<typename T>
+        option_flag_proxy(option_flag<T>& p_option_flag);
+        template<typename T>
+        option_flag_proxy(option_flag<T>&& p_option_flag);
+
+        option_flag_proxy(const option_flag_proxy&) = default;
+        option_flag_proxy(option_flag_proxy&&) = default;
+        option_flag_proxy& operator = (const option_flag_proxy&) = default;
+        option_flag_proxy& operator = (option_flag_proxy&&) = default;
+
+        bool set_flag() const;
+
+    private:
+
+        impl::set_flag_callback m_set_flag_callback;
+    };
+
+
     struct option_group {
 
         std::vector<option_proxy> required_options = {};
         std::vector<option_proxy> optional_options = {};
+        std::vector<option_flag_proxy> flag_options = {};
         std::optional<error> error_handler = {};
         std::optional<help> help_handler = {};
 
@@ -348,6 +386,11 @@ namespace cppli {
         option_group& add_option(const option<T>& p_option);
         template<typename T>
         option_group& add_option(option<T>&& p_option);
+
+        template<typename T>
+        option_group& add_option(const option_flag<T>& p_option_flag);
+        template<typename T>
+        option_group& add_option(option_flag<T>&& p_option_flag);
 
         option_group& set_error(const error& p_error);
         option_group& set_error(error&& p_error);
@@ -401,7 +444,7 @@ namespace cppli::impl {
     }
 
     template<typename T>
-    inline set_value_callback get_set_value_callback(T& p_value) {
+    inline set_value_callback create_set_value_callback(T& p_value) {
         return [&p_value](std::string_view string) mutable {
             static_assert(!std::is_const_v<T>, "Option value cannot be const.");
             static_assert(std::is_reference_v<decltype(p_value)>, "Option value must be a reference.");
@@ -440,6 +483,18 @@ namespace cppli::impl {
                 p_value = string;
                 return true;
             }
+        };
+    }
+
+    template<typename T>
+    inline set_flag_callback create_set_flag_callback(T& p_value) {
+        return [&p_value]() mutable {
+            static_assert(!std::is_const_v<T>, "Option value cannot be const.");
+            static_assert(std::is_reference_v<decltype(p_value)>, "Option value must be a reference.");
+
+            using type = typename impl::raw_option_type_t<std::decay_t<decltype(p_value)>>;
+
+            p_value = static_cast<type>(true);
         };
     }
 
@@ -840,13 +895,13 @@ namespace cppli {
     template<typename T>
     inline option_proxy::option_proxy(option<T>& p_option) :
         name(p_option.name),
-        m_set_value_callback(impl::get_set_value_callback<T>(p_option.value))
+        m_set_value_callback(impl::create_set_value_callback<T>(p_option.value))
     {}
 
     template<typename T>
     inline option_proxy::option_proxy(option<T>&& p_option) :
         name(std::move(p_option.name)),
-        m_set_value_callback(impl::get_set_value_callback<T>(p_option.value))
+        m_set_value_callback(impl::create_set_value_callback<T>(p_option.value))
     {}
 
     inline bool option_proxy::set_value(std::string_view p_value) const {
@@ -856,12 +911,35 @@ namespace cppli {
         return m_set_value_callback(p_value);
     }
 
+
+    // Option flag proxy
+    template<typename T>
+    inline option_flag_proxy::option_flag_proxy(option_flag<T>& p_option_flag) :
+        names(p_option_flag.names),
+        m_set_flag_callback(impl::create_set_flag_callback<T>(p_option_flag.value))
+    {}
+
+    template<typename T>
+    inline option_flag_proxy::option_flag_proxy(option_flag<T>&& p_option_flag) :
+        names(std::move(p_option_flag.names)),
+        m_set_flag_callback(impl::create_set_flag_callback<T>(p_option_flag.value))
+    {}
+
+    inline bool option_flag_proxy::set_flag() const {
+        if (!m_set_flag_callback) {
+            return false;
+        }
+        m_set_flag_callback();
+        return true;
+    }
+
     
     // Option group.
     inline int option_group::parse(context& p_context) const {
         auto* current_error_handler = impl::get_error_handler(p_context, *this);
         auto error_callback = impl::get_error_callback(current_error_handler);
 
+        // Required options.
         for (auto& option : required_options) {
             if (p_context.argc <= 0) {
                 error_callback(p_context, "Missing option '" + option.name + "'.");
@@ -878,9 +956,33 @@ namespace cppli {
             p_context.move_to_next_arg();
         }
 
+        
+        
         while (p_context.argc > 0) {
             const auto opt_name = std::string_view{ p_context.argv[0] };
 
+            // Flag options.
+            auto flag_it = std::find_if(flag_options.begin(), flag_options.end(), [&opt_name](const auto& opt) {
+                for (const auto& name : opt.names) {
+                    if (name == opt_name) {
+                        return true;
+                    }
+                }
+            });
+
+            if (flag_it != flag_options.end()) {
+                auto& option = *flag_it;
+
+                if (!option.set_flag()) {
+                    error_callback(p_context, "Failed to set flag of option '" + std::string{ opt_name } + "'.");
+                    return parse_codes::invalid_option;
+                }
+
+                p_context.move_to_next_arg();
+                continue;
+            }
+
+            // Optional options.
             auto optional_it = std::find_if(optional_options.begin(), optional_options.end(), [&opt_name](const auto& opt) {
                 return opt.name == opt_name;
             });
@@ -913,7 +1015,7 @@ namespace cppli {
     }
 
     template<typename T>
-    option_group& option_group::add_option(const option<T>& p_option) {
+    inline option_group& option_group::add_option(const option<T>& p_option) {
         if constexpr (impl::is_template_instance_v<T, std::optional> == true) {
             optional_options.emplace_back(p_option);
         }
@@ -924,13 +1026,24 @@ namespace cppli {
         return *this;
     }
     template<typename T>
-    option_group& option_group::add_option(option<T>&& p_option) {
+    inline option_group& option_group::add_option(option<T>&& p_option) {
         if constexpr (impl::is_template_instance_v<T, std::optional> == true) {
             optional_options.emplace_back(p_option);
         }
         else {
             required_options.emplace_back(p_option);
         }
+        return *this;
+    }
+
+    template<typename T>
+    inline option_group& option_group::add_option(const option_flag<T>& p_option_flag) {
+        flag_options.emplace_back(p_option_flag);
+        return *this;
+    }
+    template<typename T>
+    inline option_group& option_group::add_option(option_flag<T>&& p_option_flag) {
+        flag_options.emplace_back(p_option_flag);
         return *this;
     }
 

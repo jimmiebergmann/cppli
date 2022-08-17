@@ -37,6 +37,7 @@ int new_project_callback(cli::context& context) {
     std::optional<int> value_int_opt;
     std::optional<std::string> value_str_opt;
     std::optional<bool> value_bool_opt;
+    bool flag = false;
 
     auto options 
         = cli::option<int>{ 
@@ -63,6 +64,9 @@ int new_project_callback(cli::context& context) {
             .value = value_bool_opt,
             .name = "--bool_opt"
         };
+
+    options
+        .add_option(cli::option_flag<>{.value = flag, .names = { "--flag" } });
 
     auto result = options.parse(context);
 
