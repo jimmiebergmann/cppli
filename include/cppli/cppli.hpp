@@ -124,6 +124,15 @@ namespace cppli {
     template<typename T, typename U>
     option_group operator | (option<T>&& lhs, option<U>&& rhs);
 
+    template<typename T, typename U>
+    option_group operator | (const option<T>& lhs, const option_flag<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (const option<T>& lhs, option_flag<U>&& rhs);
+    template<typename T, typename U>
+    option_group operator | (option<T>&& lhs, const option_flag<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (option<T>&& lhs, option_flag<U>&& rhs);
+
     template<typename T>
     option_group operator | (const option_group& lhs, const option<T>& rhs);
     template<typename T>
@@ -132,6 +141,33 @@ namespace cppli {
     option_group operator | (option_group&& lhs, const option<T>& rhs);
     template<typename T>
     option_group operator | (option_group&& lhs, option<T>&& rhs);
+
+    template<typename T>
+    option_group operator | (const option_group& lhs, const option_flag<T>& rhs);
+    template<typename T>
+    option_group operator | (const option_group& lhs, option_flag<T>&& rhs);
+    template<typename T>
+    option_group operator | (option_group&& lhs, const option_flag<T>& rhs);
+    template<typename T>
+    option_group operator | (option_group&& lhs, option_flag<T>&& rhs);
+
+    template<typename T, typename U>
+    option_group operator | (const option_flag<T>& lhs, const option_flag<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (const option_flag<T>& lhs, option_flag<U>&& rhs);
+    template<typename T, typename U>
+    option_group operator | (option_flag<T>&& lhs, const option_flag<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (option_flag<T>&& lhs, option_flag<U>&& rhs);
+
+    template<typename T, typename U>
+    option_group operator | (const option_flag<T>& lhs, const option<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (const option_flag<T>& lhs, option<U>&& rhs);
+    template<typename T, typename U>
+    option_group operator | (option_flag<T>&& lhs, const option<U>& rhs);
+    template<typename T, typename U>
+    option_group operator | (option_flag<T>&& lhs, option<U>&& rhs);
  
 }
 
@@ -315,10 +351,18 @@ namespace cppli {
     template<typename T>
     struct option {
         T& value;
-        std::string name = {};
+        std::vector<std::string> names = {};
+        std::string description = "";
 
         option& set_name(const std::string& p_name);
         option& set_name(std::string&& p_name);
+
+        option& set_names(std::initializer_list<std::string> p_names);
+        option& set_names(const std::vector<std::string>& p_names);
+        option& set_names(std::vector<std::string>&& p_names);
+
+        option& set_description(const std::string& p_description);
+        option& set_description(std::string&& p_description);
 
     };
 
@@ -327,7 +371,8 @@ namespace cppli {
 
     public:
 
-        std::string name = {};
+        std::vector<std::string> names = {};
+        std::string description = "";
 
         template<typename T>
         option_proxy(const option<T>& p_option);
@@ -338,6 +383,8 @@ namespace cppli {
         option_proxy(option_proxy&&) = default;
         option_proxy& operator = (const option_proxy&) = default;
         option_proxy& operator = (option_proxy&&) = default;
+
+        bool has_names() const;
 
         bool set_value(std::string_view p_value) const;
 
@@ -352,6 +399,17 @@ namespace cppli {
     struct option_flag {
         T& value;
         std::vector<std::string> names = {};
+        std::string description = "";
+
+        option_flag& set_name(const std::string& p_name);
+        option_flag& set_name(std::string&& p_name);
+
+        option_flag& set_names(std::initializer_list<std::string> p_names);
+        option_flag& set_names(const std::vector<std::string>& p_names);
+        option_flag& set_names(std::vector<std::string>&& p_names);
+
+        option_flag& set_description(const std::string& p_description);
+        option_flag& set_description(std::string&& p_description);
     };
 
 
@@ -360,6 +418,7 @@ namespace cppli {
     public:
 
         std::vector<std::string> names = {};
+        std::string description = "";
 
         template<typename T>
         option_flag_proxy(const option_flag<T>& p_option_flag);
@@ -370,6 +429,8 @@ namespace cppli {
         option_flag_proxy(option_flag_proxy&&) = default;
         option_flag_proxy& operator = (const option_flag_proxy&) = default;
         option_flag_proxy& operator = (option_flag_proxy&&) = default;
+
+        bool has_names() const;
 
         bool set_flag() const;
 
@@ -903,28 +964,65 @@ namespace cppli {
     // Option.
     template<typename T>
     inline option<T>& option<T>::set_name(const std::string& p_name) {
-        name = p_name;
+        names = { p_name };
         return *this;
     }
     template<typename T>
     inline option<T>& option<T>::set_name(std::string&& p_name) {
-        name = std::move(p_name);
+        names = { std::move(p_name) };
+        return *this;
+    }
+
+    template<typename T>
+    inline option<T>& option<T>::set_names(std::initializer_list<std::string> p_names) {
+        names = p_names;
+        return *this;
+    }
+    template<typename T>
+    inline option<T>& option<T>::set_names(const std::vector<std::string>& p_names) {
+        names = p_names;
+        return *this;
+    }
+    template<typename T>
+    inline option<T>& option<T>::set_names(std::vector<std::string>&& p_names) {
+        names = std::move(p_names);
+        return *this;
+    }
+
+    template<typename T>
+    inline option<T>& option<T>::set_description(const std::string& p_description) {
+        description = p_description;
+        return *this;
+    }
+    template<typename T>
+    inline option<T>& option<T>::set_description(std::string&& p_description) {
+        description = std::move(p_description);
         return *this;
     }
 
 
-    // Option proxy
+    // Option proxy.
     template<typename T>
     inline option_proxy::option_proxy(const option<T>& p_option) :
-        name(p_option.name),
+        names(p_option.names),
+        description(p_option.description),
         m_set_value_callback(impl::create_set_value_callback<T>(p_option.value))
     {}
 
     template<typename T>
     inline option_proxy::option_proxy(option<T>&& p_option) :
-        name(std::move(p_option.name)),
+        names(std::move(p_option.names)),
+        description(std::move(p_option.description)),
         m_set_value_callback(impl::create_set_value_callback<T>(p_option.value))
     {}
+
+    inline bool option_proxy::has_names() const {
+        auto it = std::find_if(names.begin(), names.end(), [](const auto& name) { 
+            return !name.empty(); 
+         });
+
+        return it != names.end();
+    }
 
     inline bool option_proxy::set_value(std::string_view p_value) const {
         if (!m_set_value_callback) {
@@ -933,19 +1031,69 @@ namespace cppli {
         return m_set_value_callback(p_value);
     }
 
+    // Option flag.
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_name(const std::string& p_name) {
+        names = { p_name };
+        return *this;
+    }
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_name(std::string&& p_name) {
+        names = { std::move(p_name) };
+        return *this;
+    }
 
-    // Option flag proxy
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_names(std::initializer_list<std::string> p_names) {
+        names = p_names;
+        return *this;
+    }
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_names(const std::vector<std::string>& p_names) {
+        names = p_names;
+        return *this;
+    }
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_names(std::vector<std::string>&& p_names) {
+        names = std::move(p_names);
+        return *this;
+    }
+
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_description(const std::string& p_description) {
+        description = p_description;
+        return *this;
+    }
+    template<typename T>
+    inline option_flag<T>& option_flag<T>::set_description(std::string&& p_description) {
+        description = std::move(p_description);
+        return *this;
+    }
+
+
+    // Option flag proxy.
     template<typename T>
     inline option_flag_proxy::option_flag_proxy(const option_flag<T>& p_option_flag) :
         names(p_option_flag.names),
+        description(p_option_flag.description),
         m_set_flag_callback(impl::create_set_flag_callback<T>(p_option_flag.value))
     {}
 
     template<typename T>
     inline option_flag_proxy::option_flag_proxy(option_flag<T>&& p_option_flag) :
         names(std::move(p_option_flag.names)),
+        description(std::move(p_option_flag.description)),
         m_set_flag_callback(impl::create_set_flag_callback<T>(p_option_flag.value))
     {}
+
+    
+    inline bool option_flag_proxy::has_names() const {
+        auto it = std::find_if(names.begin(), names.end(), [](const auto& name) {
+            return !name.empty();
+        });
+
+        return it != names.end();
+    }
 
     inline bool option_flag_proxy::set_flag() const {
         if (!m_set_flag_callback) {
@@ -970,15 +1118,17 @@ namespace cppli {
 
         // Required options.
         for (auto& option : required_options) {
+            auto first_opt_name = !option.names.empty() ? option.names.front() : "opt";
+
             if (p_context.argc <= 0) {
-                error_callback(p_context, "Missing option '" + option.name + "'.");
+                error_callback(p_context, "Missing option '" + first_opt_name + "'.");
                 return parse_codes::missing_option;
             }
 
             const auto opt_value = std::string_view{ p_context.argv[0] };
 
             if (!option.set_value(opt_value)) {
-                error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + option.name + "'.");
+                error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + first_opt_name + "'.");
                 return parse_codes::invalid_option;
             }
 
@@ -1012,22 +1162,29 @@ namespace cppli {
 
             // Optional options.
             auto optional_it = std::find_if(optional_options.begin(), optional_options.end(), [&opt_name](const auto& opt) {
-                return opt.name == opt_name;
+                for (const auto& name : opt.names) {
+                    if (name == opt_name) {
+                        return true;
+                    }
+                }
+                return false;
             });
 
             if (optional_it != optional_options.end()) {
                 auto& option = *optional_it;
                 p_context.move_to_next_arg();
 
+                auto first_opt_name = !option.names.empty() ? option.names.front() : "opt";
+
                 if (p_context.argc <= 0) {
-                    error_callback(p_context, "Missing value of option '" + option.name + "'.");
+                    error_callback(p_context, "Missing value of option '" + first_opt_name + "'.");
                     return parse_codes::missing_option;
                 }
 
                 const auto opt_value = std::string_view{ p_context.argv[0] };
                 
                 if (!option.set_value(opt_value)) {
-                    error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + option.name + "'.");
+                    error_callback(p_context, "Invalid value '" + std::string{ opt_value } + "' of option '" + first_opt_name + "'.");
                     return parse_codes::invalid_option;
                 }
 
@@ -1315,6 +1472,34 @@ namespace cppli {
         return group;
     }
 
+    template<typename T, typename U>
+    inline option_group operator | (const option<T>& lhs, const option_flag<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (const option<T>& lhs, option_flag<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option<T>&& lhs, const option_flag<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option<T>&& lhs, option_flag<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(std::move(rhs));
+        return group;
+    }
 
     template<typename T>
     inline option_group operator | (const option_group& lhs, const option<T>& rhs) {
@@ -1338,6 +1523,88 @@ namespace cppli {
         lhs.add_option(std::move(rhs));
         return lhs;
     }
+
+    template<typename T>
+    inline option_group operator | (const option_group& lhs, const option_flag<T>& rhs) {
+        auto group = option_group{ lhs };
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T>
+    inline option_group operator | (const option_group& lhs, option_flag<T>&& rhs) {
+        auto group = option_group{ lhs };
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T>
+    inline option_group operator | (option_group&& lhs, const option_flag<T>& rhs) {
+        lhs.add_option(rhs);
+        return lhs;
+    }
+    template<typename T>
+    inline option_group operator | (option_group&& lhs, option_flag<T>&& rhs) {
+        lhs.add_option(std::move(rhs));
+        return lhs;
+    }
+
+    template<typename T, typename U>
+    inline option_group operator | (const option_flag<T>& lhs, const option_flag<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (const option_flag<T>& lhs, option_flag<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option_flag<T>&& lhs, const option_flag<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option_flag<T>&& lhs, option_flag<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(std::move(rhs));
+        return group;
+    }
+
+    template<typename T, typename U>
+    inline option_group operator | (const option_flag<T>& lhs, const option<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (const option_flag<T>& lhs, option<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(lhs);
+        group.add_option(std::move(rhs));
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option_flag<T>&& lhs, const option<U>& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(rhs);
+        return group;
+    }
+    template<typename T, typename U>
+    inline option_group operator | (option_flag<T>&& lhs, option<U>&& rhs) {
+        auto group = option_group{};
+        group.add_option(std::move(lhs));
+        group.add_option(std::move(rhs));
+        return group;
+    }
+
 
 }
 

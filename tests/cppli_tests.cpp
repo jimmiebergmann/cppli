@@ -329,13 +329,20 @@ TEST(option_group, single_option)
 
     auto group 
         = cli::option_group{}
-        | cli::option<int>{ value, "value"};
+        | cli::option<int>{ value, { "value" }}
+            .set_name("value")
+            .set_description("desc 123");
 
     EXPECT_EQ(group.required_options.size(), size_t{ 1 });
     EXPECT_TRUE(group.optional_options.empty());
     EXPECT_TRUE(group.flag_options.empty());
     EXPECT_FALSE(group.error_handler.has_value());
     EXPECT_FALSE(group.help_handler.has_value());
+
+    ASSERT_EQ(group.required_options.front().names.size(), size_t{ 1 });
+    EXPECT_STREQ(group.required_options.front().names.front().c_str(), "value");
+
+    EXPECT_STREQ(group.required_options.front().description.c_str(), "desc 123");
 
     // FAIL
     value = 0;
@@ -407,13 +414,21 @@ TEST(option_group, single_option_optional)
 
     auto group
         = cli::option_group{}
-        | cli::option<std::optional<int>>{ value, "--value"};
+        | cli::option<std::optional<int>>{ value }
+            .set_name("--value")
+            .set_description("desc 234");
     
     EXPECT_TRUE(group.required_options.empty());
-    EXPECT_EQ(group.optional_options.size(), size_t{ 1 });
+    ASSERT_EQ(group.optional_options.size(), size_t{ 1 });
     EXPECT_TRUE(group.flag_options.empty());
     EXPECT_FALSE(group.error_handler.has_value());
     EXPECT_FALSE(group.help_handler.has_value());
+
+    ASSERT_EQ(group.optional_options.front().names.size(), size_t{ 1 });
+    EXPECT_STREQ(group.optional_options.front().names.front().c_str(), "--value");
+
+    EXPECT_STREQ(group.optional_options.front().description.c_str(), "desc 234");
+
 
     // FAIL
     value.reset();
@@ -506,10 +521,12 @@ TEST(option_group, multiple_options)
     int value_int = 0;
     bool value_bool = false;
     std::string value_string = "";
+    bool flag = false;
 
     std::optional<int> value_int_opt;
     std::optional<bool> value_bool_opt;
     std::optional<std::string> value_string_opt;
+    std::optional<bool> flag_opt;
 
     auto group
         = cli::option<int>{ value_int }
@@ -523,14 +540,18 @@ TEST(option_group, multiple_options)
         | cli::option< std::optional<bool>>{ value_bool_opt }
             .set_name("value_bool_opt")
         | cli::option< std::optional<std::string>>{ value_string_opt }
-            .set_name("value_string_opt");
+            .set_name("value_string_opt")
+        | cli::option_flag<bool>{ flag }
+            .set_name("flag")
+        | cli::option_flag<std::optional<bool>>{ flag_opt }
+            .set_name("flag_opt");
 
     static_assert(std::is_same_v<decltype(group), cli::option_group>,
         "Expecting type to be cli::command_group");
 
     EXPECT_EQ(group.required_options.size(), size_t{ 3 });
     EXPECT_EQ(group.optional_options.size(), size_t{ 3 });
-    EXPECT_TRUE(group.flag_options.empty());
+    EXPECT_EQ(group.flag_options.size(), size_t{ 2 });
     EXPECT_FALSE(group.error_handler.has_value());
     EXPECT_FALSE(group.help_handler.has_value());
     EXPECT_FALSE(group.error_handler.has_value());
@@ -541,11 +562,12 @@ TEST(option_group, multiple_options)
         auto args = std::array{ 
             "path/to/program", 
             "123", "tRuE", "foo bar",
-            "value_int_opt", "234", "value_bool_opt", "1", "value_string_opt", "hello world"
+            "value_int_opt", "234", "value_bool_opt", "1", "value_string_opt", "hello world",
+            "flag", "flag_opt"
         };
         auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
-        EXPECT_EQ(context.argc, 10);
+        EXPECT_EQ(context.argc, 12);
         EXPECT_EQ(context.argv, args.data());
         EXPECT_EQ(group.parse(context), cli::parse_codes::successful);
 
@@ -560,6 +582,10 @@ TEST(option_group, multiple_options)
         EXPECT_EQ(value_int_opt.value(), 234);
         EXPECT_EQ(value_bool_opt.value(), true);
         EXPECT_STREQ(value_string_opt.value().c_str(), "hello world");
+
+        EXPECT_EQ(flag, true);
+        ASSERT_TRUE(flag_opt.has_value());
+        EXPECT_EQ(flag_opt.value(), true);
     }
 }
 

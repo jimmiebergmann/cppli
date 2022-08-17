@@ -31,25 +31,26 @@ int main(int argc, char** argv) {
 }
 
 int new_project_callback(cli::context& context) {
-    std::string name;
-    std::optional<std::string> template_name;
+    auto name = std::string{};
+    auto template_name = std::optional<std::string>{};
 
     auto options 
         = cli::option<std::string>{ 
             .value = name,
-            .name = "name"
+            .names = { "name" },
+            .description = "Name of project."
           }
         | cli::option<std::optional<std::string>>{
             .value = template_name,
-            .name = "--template"
+            .names = { "--template" },
+            .description = "Optional template filename."
           };
 
     if (auto result = options.parse(context); result != cli::parse_codes::successful) {
         return result;
     }
 
-    // Create new project with name and template.
-    // ...
+    /* Create new project with name and template here... */
 
     return 0;
 }

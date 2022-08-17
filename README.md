@@ -1,5 +1,5 @@
 # c[pp]li
-![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE) [![Codecov code coverage](https://img.shields.io/codecov/c/github/jimmiebergmann/cppli/master?label=Codecov&logo=Codecov)](https://codecov.io/gh/jimmiebergmann/cppli)  
+![version](https://img.shields.io/badge/Version-v0.1.0-blue) [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/jimmiebergmann/cppli/blob/master/LICENSE) [![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/jimmiebergmann/cppli/Build/master?label=Github&logo=Github)](https://github.com/jimmiebergmann/cppli/actions) [![Codecov code coverage](https://img.shields.io/codecov/c/github/jimmiebergmann/cppli/master?label=Codecov&logo=Codecov)](https://codecov.io/gh/jimmiebergmann/cppli)  
 Single header C++17 CLI parser library.
 
 # Example
@@ -38,17 +38,19 @@ int main(int argc, char** argv) {
 }
 
 int new_project_callback(cli::context& context) {
-    std::string name;
-    std::optional<std::string> template_name;
+    auto name = std::string{};
+    auto template_name = std::optional<std::string>{};
 
     auto options 
         = cli::option<std::string>{ 
             .value = name,
-            .name = "name"
+            .names = { "name" },
+            .description = "Name of project."
           }
         | cli::option<std::optional<std::string>>{
             .value = template_name,
-            .name = "--template"
+            .names = { "--template" },
+            .description = "Optional template filename."
           };
 
     if (auto result = options.parse(context); result != cli::parse_codes::successful) {
