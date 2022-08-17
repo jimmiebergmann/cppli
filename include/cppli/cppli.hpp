@@ -62,11 +62,12 @@ namespace cppli {
 
     namespace parse_codes {
         static constexpr int successful = 0;
-        static constexpr int missing_command = 1;
-        static constexpr int unknown_command = 2;
-        static constexpr int missing_option = 3;     
-        static constexpr int invalid_option = 4;
-        static constexpr int unknown_option = 5;
+        static constexpr int missing_path = 1;
+        static constexpr int missing_command = 2;
+        static constexpr int unknown_command = 3;
+        static constexpr int missing_option = 4;     
+        static constexpr int invalid_option = 5;
+        static constexpr int unknown_option = 6;
     }
 
     context operator | (const context& lhs, const error& rhs);
@@ -137,6 +138,8 @@ namespace cppli {
 namespace cppli::impl {
 
     std::string_view parse_program_name(const char* path);
+
+    bool handle_first_arg_is_path(context& p_context);
 
     template<typename T>
     const error* get_error_handler(const context& p_context, const T& p_other);
@@ -419,6 +422,21 @@ namespace cppli::impl {
         const auto program_len = last_ext_pos != std::string_view::npos ? last_ext_pos : program_exe_view.size();
 
         return std::string_view{ program_exe_view.data(), program_len };
+    }
+
+    inline bool handle_first_arg_is_path(context& p_context) {
+        if (p_context.first_arg_is_path) {
+            if (p_context.argc <= 0) {
+                return false;
+            }
+                
+            auto program_name = impl::parse_program_name(p_context.argv[0]);
+            if (!program_name.empty()) {
+                p_context.current_path.emplace_back(program_name);
+            }
+            p_context.move_to_next_arg();
+        }
+        return true;
     }
 
     template<typename T>
@@ -761,29 +779,16 @@ namespace cppli {
 
 
     // Command group.
-    inline int command_group::parse(context& p_context) const {
-        auto* current_help_handler = impl::get_help_handler(p_context, *this);
-
-        if (commands.empty() && (current_help_handler == nullptr || !current_help_handler->has_names())) {
-            return parse_codes::unknown_command;
-        }
-
+    inline int command_group::parse(context& p_context) const { 
         p_context.current_command_group = *this;
 
+        auto* current_help_handler = impl::get_help_handler(p_context, *this);
         auto* current_error_handler = impl::get_error_handler(p_context, *this);
         auto error_callback = impl::get_error_callback(current_error_handler);
 
-        if (p_context.argc < 1) {
-            error_callback(p_context, "Missing command.");
-            return parse_codes::missing_command;
-        }
-
-        if (p_context.first_arg_is_path) {
-            auto program_name = impl::parse_program_name(p_context.argv[0]);
-            if (!program_name.empty()) {
-                p_context.current_path.emplace_back(program_name);
-            }
-            p_context.move_to_next_arg();
+        if (!impl::handle_first_arg_is_path(p_context)) {
+            error_callback(p_context, "Missing path.");
+            return parse_codes::missing_path;
         }
 
         if (p_context.argc < 1) {
@@ -936,8 +941,15 @@ namespace cppli {
     
     // Option group.
     inline int option_group::parse(context& p_context) const {
+        p_context.current_command_group.reset();
+        
         auto* current_error_handler = impl::get_error_handler(p_context, *this);
-        auto error_callback = impl::get_error_callback(current_error_handler);
+        auto error_callback = impl::get_error_callback(current_error_handler); 
+
+        if (!impl::handle_first_arg_is_path(p_context)) {
+            error_callback(p_context, "Missing path.");
+            return parse_codes::missing_path;
+        }
 
         // Required options.
         for (auto& option : required_options) {
@@ -954,9 +966,7 @@ namespace cppli {
             }
 
             p_context.move_to_next_arg();
-        }
-
-        
+        } 
         
         while (p_context.argc > 0) {
             const auto opt_name = std::string_view{ p_context.argv[0] };

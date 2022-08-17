@@ -46,6 +46,21 @@ TEST(command_group, empty_group)
 
     // FAIL
     {
+        auto context = cli::context{}.set_arg(0, nullptr);
+
+        EXPECT_EQ(context.argc, 0);
+        EXPECT_EQ(context.argv, nullptr);
+        EXPECT_EQ(group.parse(context), cli::parse_codes::missing_path);
+    }
+    {
+        auto args = std::array{ "path/to/program" };
+        auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
+
+        EXPECT_EQ(context.argc, 1);
+        EXPECT_EQ(context.argv, args.data());
+        EXPECT_EQ(group.parse(context), cli::parse_codes::missing_command);
+    }
+    {
         auto args = std::array{ "path/to/program", "test" };
         auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
 
@@ -259,6 +274,52 @@ TEST(command_group, multiple_commands)
         EXPECT_EQ(context.argv, args.data());
         EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_command);
         EXPECT_TRUE(check_triggered_callbacks(false, false, false));
+    }
+}
+
+TEST(option_group, empty_group)
+{
+    auto group = cli::option_group{};
+
+    EXPECT_TRUE(group.required_options.empty());
+    EXPECT_TRUE(group.optional_options.empty());
+    EXPECT_TRUE(group.flag_options.empty());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
+
+    // FAIL
+    {
+        auto context = cli::context{}.set_arg(0, nullptr);
+
+        EXPECT_EQ(context.argc, 0);
+        EXPECT_EQ(context.argv, nullptr);
+        EXPECT_EQ(group.parse(context), cli::parse_codes::missing_path);
+    }
+    {
+        auto args = std::array{ "path/to/program", "test" };
+        auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
+
+        EXPECT_EQ(context.argc, 2);
+        EXPECT_EQ(context.argv, args.data());
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_option);
+    }
+    {
+        auto args = std::array{ "path/to/program", "", "test" };
+        auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
+
+        EXPECT_EQ(context.argc, 3);
+        EXPECT_EQ(context.argv, args.data());
+        EXPECT_EQ(group.parse(context), cli::parse_codes::unknown_option);
+    }
+
+    // OK
+    {
+        auto args = std::array{ "path/to/program" };
+        auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
+
+        EXPECT_EQ(context.argc, 1);
+        EXPECT_EQ(context.argv, args.data());
+        EXPECT_EQ(group.parse(context), cli::parse_codes::successful);
     }
 }
 

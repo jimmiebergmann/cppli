@@ -37,8 +37,26 @@ int main(int argc, char** argv) {
     return commands.parse(context);
 }
 
-int new_project_callback(cli::context&) {
-    /* Code here... */
+int new_project_callback(cli::context& context) {
+    std::string name;
+    std::optional<std::string> template_name;
+
+    auto options 
+        = cli::option<std::string>{ 
+            .value = name,
+            .name = "name"
+          }
+        | cli::option<std::optional<std::string>>{
+            .value = template_name,
+            .name = "--template"
+          };
+
+    if (auto result = options.parse(context); result != cli::parse_codes::successful) {
+        return result;
+    }
+
+    /* Create new project with name and template here... */
+
     return 0;
 }
 ```

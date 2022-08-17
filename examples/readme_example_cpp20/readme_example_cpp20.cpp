@@ -31,44 +31,25 @@ int main(int argc, char** argv) {
 }
 
 int new_project_callback(cli::context& context) {
-    int value_int = 0;   
-    std::string value_str = "";
-    bool value_bool = false;
-    std::optional<int> value_int_opt;
-    std::optional<std::string> value_str_opt;
-    std::optional<bool> value_bool_opt;
-    bool flag = false;
+    std::string name;
+    std::optional<std::string> template_name;
 
     auto options 
-        = cli::option<int>{ 
-            .value = value_int,
-            .name = "int"
-          }
-        | cli::option<std::string>{
-            .value = value_str,
-            .name = "str"
-          }
-        | cli::option<bool>{
-            .value = value_bool,
-            .name = "bool"
-          }
-        | cli::option<std::optional<int>>{
-            .value = value_int_opt,
-            .name = "--int_opt"
+        = cli::option<std::string>{ 
+            .value = name,
+            .name = "name"
           }
         | cli::option<std::optional<std::string>>{
-            .value = value_str_opt,
-            .name = "--str_opt"
-          } 
-        | cli::option<std::optional<bool>>{
-            .value = value_bool_opt,
-            .name = "--bool_opt"
-        };
+            .value = template_name,
+            .name = "--template"
+          };
 
-    options
-        .add_option(cli::option_flag<>{.value = flag, .names = { "--flag" } });
+    if (auto result = options.parse(context); result != cli::parse_codes::successful) {
+        return result;
+    }
 
-    auto result = options.parse(context);
+    // Create new project with name and template.
+    // ...
 
-    return result;
+    return 0;
 }
