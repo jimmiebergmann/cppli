@@ -501,6 +501,68 @@ TEST(option_group, single_option_optional)
     }
 }
 
+TEST(option_group, multiple_options)
+{
+    int value_int = 0;
+    bool value_bool = false;
+    std::string value_string = "";
+
+    std::optional<int> value_int_opt;
+    std::optional<bool> value_bool_opt;
+    std::optional<std::string> value_string_opt;
+
+    auto group
+        = cli::option<int>{ value_int }
+            .set_name("value_int")
+        | cli::option<bool>{ value_bool }
+            .set_name("value_bool")
+        | cli::option<std::string>{ value_string }
+            .set_name("value_string")
+        | cli::option< std::optional<int>>{ value_int_opt }
+            .set_name("value_int_opt")
+        | cli::option< std::optional<bool>>{ value_bool_opt }
+            .set_name("value_bool_opt")
+        | cli::option< std::optional<std::string>>{ value_string_opt }
+            .set_name("value_string_opt");
+
+    static_assert(std::is_same_v<decltype(group), cli::option_group>,
+        "Expecting type to be cli::command_group");
+
+    EXPECT_EQ(group.required_options.size(), size_t{ 3 });
+    EXPECT_EQ(group.optional_options.size(), size_t{ 3 });
+    EXPECT_TRUE(group.flag_options.empty());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
+    EXPECT_FALSE(group.error_handler.has_value());
+    EXPECT_FALSE(group.help_handler.has_value());
+
+    // OK
+    {
+        auto args = std::array{ 
+            "path/to/program", 
+            "123", "tRuE", "foo bar",
+            "value_int_opt", "234", "value_bool_opt", "1", "value_string_opt", "hello world"
+        };
+        auto context = cli::context{}.set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()));
+
+        EXPECT_EQ(context.argc, 10);
+        EXPECT_EQ(context.argv, args.data());
+        EXPECT_EQ(group.parse(context), cli::parse_codes::successful);
+
+        EXPECT_EQ(value_int, 123);
+        EXPECT_EQ(value_bool, true);
+        EXPECT_STREQ(value_string.c_str(), "foo bar");
+
+        ASSERT_TRUE(value_int_opt.has_value());
+        ASSERT_TRUE(value_bool_opt.has_value());
+        ASSERT_TRUE(value_string_opt.has_value());
+
+        EXPECT_EQ(value_int_opt.value(), 234);
+        EXPECT_EQ(value_bool_opt.value(), true);
+        EXPECT_STREQ(value_string_opt.value().c_str(), "hello world");
+    }
+}
+
 TEST(default_error, context)
 {
     auto group

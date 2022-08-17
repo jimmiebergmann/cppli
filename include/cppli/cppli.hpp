@@ -316,6 +316,10 @@ namespace cppli {
     struct option {
         T& value;
         std::string name = {};
+
+        option& set_name(const std::string& p_name);
+        option& set_name(std::string&& p_name);
+
     };
 
 
@@ -326,7 +330,7 @@ namespace cppli {
         std::string name = {};
 
         template<typename T>
-        option_proxy(option<T>& p_option);
+        option_proxy(const option<T>& p_option);
         template<typename T>
         option_proxy(option<T>&& p_option);
 
@@ -358,7 +362,7 @@ namespace cppli {
         std::vector<std::string> names = {};
 
         template<typename T>
-        option_flag_proxy(option_flag<T>& p_option_flag);
+        option_flag_proxy(const option_flag<T>& p_option_flag);
         template<typename T>
         option_flag_proxy(option_flag<T>&& p_option_flag);
 
@@ -896,9 +900,22 @@ namespace cppli {
     }
 
 
+    // Option.
+    template<typename T>
+    inline option<T>& option<T>::set_name(const std::string& p_name) {
+        name = p_name;
+        return *this;
+    }
+    template<typename T>
+    inline option<T>& option<T>::set_name(std::string&& p_name) {
+        name = std::move(p_name);
+        return *this;
+    }
+
+
     // Option proxy
     template<typename T>
-    inline option_proxy::option_proxy(option<T>& p_option) :
+    inline option_proxy::option_proxy(const option<T>& p_option) :
         name(p_option.name),
         m_set_value_callback(impl::create_set_value_callback<T>(p_option.value))
     {}
@@ -919,7 +936,7 @@ namespace cppli {
 
     // Option flag proxy
     template<typename T>
-    inline option_flag_proxy::option_flag_proxy(option_flag<T>& p_option_flag) :
+    inline option_flag_proxy::option_flag_proxy(const option_flag<T>& p_option_flag) :
         names(p_option_flag.names),
         m_set_flag_callback(impl::create_set_flag_callback<T>(p_option_flag.value))
     {}
@@ -978,6 +995,7 @@ namespace cppli {
                         return true;
                     }
                 }
+                return false;
             });
 
             if (flag_it != flag_options.end()) {

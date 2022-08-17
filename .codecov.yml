@@ -1,8 +1,16 @@
-codecov:
+coverage:
   require_ci_to_pass: yes
+  precision: 2
+  round: down
+  range: "80...100"
   status:
-    project: off
-    patch: off
+    project:
+      default:
+        threshold: 5.0%
+    patch:
+      default:
+          threshold: 5.0%
+    
 ignore:
   - "bin"
   - "build"
