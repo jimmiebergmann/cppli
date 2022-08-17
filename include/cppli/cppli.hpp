@@ -273,6 +273,10 @@ namespace cppli {
             const context& p_context,
             const command_group& p_command_group);
 
+        static std::string default_string(
+            const context& p_context,
+            const option_group& p_option_group);
+
     };
 
 
@@ -285,6 +289,7 @@ namespace cppli {
         std::optional<help> help_handler = {};
         std::vector<std::string> current_path = {};
         std::optional<std::reference_wrapper<const command_group>> current_command_group = {};
+        std::optional<std::reference_wrapper<const option_group>> current_option_group = {};
 
         context& set_arg(int p_argc, char** p_argv);
         context& set_argc(int p_argc);
@@ -667,6 +672,11 @@ namespace cppli {
                 p_context,
                 p_context.current_command_group.value());
         }
+        else if (p_context.current_option_group.has_value()) {
+            std::cout << default_string(
+                p_context,
+                p_context.current_option_group.value());
+        }
 
         return 0;
     }
@@ -735,6 +745,28 @@ namespace cppli {
             const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
             result += std::string(tab_width, ' ');
             result += description + "\n";
+        }
+
+        return result;
+    }
+
+    inline std::string default_help::default_string(
+        const context& p_context,
+        const option_group& p_option_group)
+    {
+        auto result = std::string{ "Usage: " };
+        result += !p_context.current_path.empty() ? p_context.current_path.back() + " " : "";
+
+        auto* help_handler = impl::get_help_handler(p_context, p_option_group);
+
+        const size_t pre_command_count =
+            p_option_group.required_options.size() +
+            p_option_group.optional_options.size() +
+            p_option_group.flag_options.size() +
+            ((help_handler && help_handler->has_names()) ? size_t{ 1 } : size_t{ 0 });
+
+        if (pre_command_count == 0) {
+            return result;
         }
 
         return result;
@@ -846,6 +878,7 @@ namespace cppli {
     // Command group.
     inline int command_group::parse(context& p_context) const { 
         p_context.current_command_group = *this;
+        p_context.current_option_group.reset();
 
         auto* current_help_handler = impl::get_help_handler(p_context, *this);
         auto* current_error_handler = impl::get_error_handler(p_context, *this);
@@ -1107,7 +1140,9 @@ namespace cppli {
     // Option group.
     inline int option_group::parse(context& p_context) const {
         p_context.current_command_group.reset();
+        p_context.current_option_group = *this;
         
+        auto* current_help_handler = impl::get_help_handler(p_context, *this);
         auto* current_error_handler = impl::get_error_handler(p_context, *this);
         auto error_callback = impl::get_error_callback(current_error_handler); 
 
@@ -1191,9 +1226,26 @@ namespace cppli {
                 p_context.move_to_next_arg();
                 continue;
             }
-
+     
             error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
             return parse_codes::unknown_option;
+
+            /*if (current_help_handler == nullptr || !current_help_handler->has_names()) {
+                error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
+                return parse_codes::unknown_command;
+            }
+
+            auto help_it = std::find_if(current_help_handler->names.begin(), current_help_handler->names.end(),
+                [&opt_name](const auto& name) { return name == opt_name; });
+
+            if (help_it == current_help_handler->names.end()) {
+                error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
+                return parse_codes::unknown_command;
+            }
+
+            return current_help_handler->callback ?
+                current_help_handler->callback(p_context) :
+                parse_codes::successful;*/
         }
 
         return parse_codes::successful;
