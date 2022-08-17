@@ -1,5 +1,8 @@
 codecov:
   require_ci_to_pass: yes
+  status:
+    project: off
+    patch: off
 ignore:
   - "bin"
   - "build"
