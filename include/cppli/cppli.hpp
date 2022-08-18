@@ -278,6 +278,8 @@ namespace cppli {
             const context& p_context,
             const option_group& p_option_group);
 
+        static std::string join_names(const std::vector<std::string>& names);
+
     };
 
 
@@ -711,23 +713,8 @@ namespace cppli {
         std::vector<std::pair<std::string, std::string>> command_rows = {};
         command_rows.reserve(pre_command_count);
 
-        auto create_command_name = [](const std::vector<std::string>& names) {
-            std::string result;
-            for (const auto& name : names) {
-                if (name.empty()) {
-                    continue;
-                }
-                if (!result.empty()) {
-                    result += "|";
-                }
-                result += name;
-            }
-
-            return result;
-        };
-
-        auto add_command_rows = [&](const std::vector<std::string>& names, const std::string& description) {
-            const std::string name = create_command_name(names);
+        auto add_command_row = [&](const std::vector<std::string>& names, const std::string& description) {
+            const std::string name = join_names(names);
             if (name.empty()) {
                 return;
             }
@@ -736,10 +723,10 @@ namespace cppli {
         };
 
         if (help_handler) {
-            add_command_rows(help_handler->names, help_handler->description);
+            add_command_row(help_handler->names, help_handler->description);
         }
         for (const auto& command : p_command_group.commands) {
-            add_command_rows(command.names, command.description);
+            add_command_row(command.names, command.description);
         }
 
         if (command_rows.empty()) {
@@ -776,6 +763,67 @@ namespace cppli {
 
         if (pre_command_count == 0) {
             return result;
+        }
+
+        size_t min_command_column = 0;
+        std::vector<std::pair<std::string, std::string>> option_rows = {};
+        option_rows.reserve(pre_command_count);
+
+        auto add_option_row = [&](const std::vector<std::string>& names, const std::string& description) {
+            const std::string name = join_names(names);
+            if (name.empty()) {
+                return;
+            }
+            option_rows.emplace_back(name, description);
+            min_command_column = std::max(min_command_column, name.size());
+        };
+
+        if (help_handler) {
+            add_option_row(help_handler->names, help_handler->description);
+        }
+        for (const auto& option : p_option_group.required_options) {
+            add_option_row(option.names, option.description);
+
+            if (option.has_names()) {
+                result += "<" + option.names.front() + "> ";
+            }        
+        }
+        for (const auto& option : p_option_group.optional_options) {
+            add_option_row(option.names, option.description);
+        }
+        for (const auto& option : p_option_group.flag_options) {
+            add_option_row(option.names, option.description);
+        }
+
+        if (option_rows.empty()) {
+            return result;
+        }
+
+        result += "[options]\n\nOptions:\n";
+
+        for (const auto& option_row : option_rows) {
+            const auto& [name, description] = option_row;
+            result += "  " + name;
+            const size_t tab_width = min_command_column - name.size() + size_t{ 6 };
+            result += std::string(tab_width, ' ');
+            result += description + "\n";
+        }
+
+        return result;
+    }
+
+    inline std::string default_help::join_names(const std::vector<std::string>& names) {
+        if (names.empty()) {
+            return "";
+        }
+
+        std::string result = names.front();
+        for (auto it = std::next(names.begin()); it != names.end(); ++it) {
+            const auto& name = *it;
+            if (name.empty()) {
+                continue;
+            }
+            result += "|" + name;
         }
 
         return result;

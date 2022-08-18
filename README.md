@@ -58,6 +58,8 @@ int new_project_callback(cli::context& context) {
     }
 
     /* Create new project with name and template here... */
+    std::cout << "New project '" << name
+              << "', from template '" << template_name.value_or("none") << "'\n";
 
     return 0;
 }
@@ -74,6 +76,23 @@ Commands:
   new             Create new project.
   open            Open project.
   build|yolo      Build project.
+```
+```
+> readme_example_cpp20 new --help
+```
+```
+Usage: new <name> [option]
+
+Options:
+  -h|--help       Show command line help.
+  name            Name of project.
+  --template      Optional template filename.
+```
+```
+> readme_example_cpp20 new example --template test
+```
+```
+New project 'example', from template 'test'
 ```
 
 # Usage

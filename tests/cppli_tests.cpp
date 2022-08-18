@@ -651,6 +651,46 @@ TEST(default_error, context)
 
 TEST(default_help, context)
 {
+    auto hello_callback = [](cli::context& context) {
+        int value_int = 0;
+        bool value_bool = false;
+        std::string value_string = "";
+        bool flag = false;
+
+        std::optional<int> value_int_opt;
+        std::optional<bool> value_bool_opt;
+        std::optional<std::string> value_string_opt;
+        std::optional<bool> flag_opt;
+
+        auto group
+            = cli::option<int>{ value_int }
+                .set_name("value_int")
+                .set_description("Opt testning 1")
+            | cli::option<bool>{ value_bool }
+                .set_name("value_bool")
+                 .set_description("Opt testning 2")
+            | cli::option<std::string>{ value_string }
+                .set_name("value_string")
+                .set_description("Opt testning 3")
+            | cli::option< std::optional<int>>{ value_int_opt }
+                .set_name("value_int_opt")
+                .set_description("Opt testning 4")
+            | cli::option< std::optional<bool>>{ value_bool_opt }
+                .set_name("value_bool_opt")
+                 .set_description("Opt testning 5")
+            | cli::option< std::optional<std::string>>{ value_string_opt }
+                .set_name("value_string_opt")
+                .set_description("Opt testning 6")
+            | cli::option_flag<bool>{ flag }
+                .set_name("flag")
+                .set_description("Opt testning 7")
+            | cli::option_flag<std::optional<bool>>{ flag_opt }
+                .set_name("flag_opt")
+                .set_description("Opt testning 8");
+
+        return group.parse(context);
+    };
+
     auto group
         = cli::command{}
             .set_names({ "yolo", "swag" })
@@ -658,6 +698,7 @@ TEST(default_help, context)
         | cli::command{}
             .set_names({ "hello" })
             .set_description("Testning 2")
+            .set_callback(hello_callback)
         | cli::command{}
             .set_names({ "foo", "bar" })
             .set_description("Testning 3");
@@ -669,30 +710,66 @@ TEST(default_help, context)
     EXPECT_FALSE(group.error_handler.has_value());
     EXPECT_FALSE(group.help_handler.has_value());
 
-    auto args = std::array{ "path/to/program", "--help" };
-    auto context
-        = cli::context{}
-            .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
-        | cli::default_help{};
-
-    EXPECT_EQ(context.argc, 2);
-    EXPECT_EQ(context.argv, args.data());
-
-    std::stringstream cout_stream;
+    // Root
     {
-        auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
-        ASSERT_EQ(group.parse(context), 0);
-    }
-    
-    std::string expected_help_string =
-        "Usage: program [command] [command-options]\n\n"
-        "Commands:\n"
-        "  -h|--help      Show command line help.\n"
-        "  yolo|swag      Testning 1\n"
-        "  hello          Testning 2\n"
-        "  foo|bar        Testning 3\n";
+        auto args = std::array{ "path/to/program", "--help" };
+        auto context
+            = cli::context{}
+            .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+            | cli::default_help{};
 
-    auto help_string = cout_stream.str();
-    EXPECT_STREQ(help_string.c_str(), expected_help_string.c_str());
+        EXPECT_EQ(context.argc, 2);
+        EXPECT_EQ(context.argv, args.data());
+
+        std::stringstream cout_stream;
+        {
+            auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
+            ASSERT_EQ(group.parse(context), 0);
+        }
+
+        std::string expected_help_string =
+            "Usage: program [command] [command-options]\n\n"
+            "Commands:\n"
+            "  -h|--help      Show command line help.\n"
+            "  yolo|swag      Testning 1\n"
+            "  hello          Testning 2\n"
+            "  foo|bar        Testning 3\n";
+
+        auto help_string = cout_stream.str();
+        EXPECT_STREQ(help_string.c_str(), expected_help_string.c_str());
+    }
+    // Hello
+    {
+        auto args = std::array{ "path/to/program", "hello", "--help" };
+        auto context
+            = cli::context{}
+                .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+            | cli::default_help{};
+
+        EXPECT_EQ(context.argc, 3);
+        EXPECT_EQ(context.argv, args.data());
+
+        std::stringstream cout_stream;
+        {
+            auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
+            ASSERT_EQ(group.parse(context), 0);
+        }
+
+        std::string expected_help_string =
+            "Usage: hello <value_int> <value_bool> <value_string> [options]\n\n"
+            "Options:\n"
+            "  -h|--help             Show command line help.\n"
+            "  value_int             Opt testning 1\n"
+            "  value_bool            Opt testning 2\n"
+            "  value_string          Opt testning 3\n"
+            "  value_int_opt         Opt testning 4\n"
+            "  value_bool_opt        Opt testning 5\n"
+            "  value_string_opt      Opt testning 6\n"
+            "  flag                  Opt testning 7\n"
+            "  flag_opt              Opt testning 8\n";
+
+        auto help_string = cout_stream.str();
+        EXPECT_STREQ(help_string.c_str(), expected_help_string.c_str());
+    }
 
 }

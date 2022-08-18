@@ -45,6 +45,8 @@ int new_project_callback(cli::context& context) {
     }
 
     /* Create new project with name and template here... */
+    std::cout << "New project '" << name
+              << "', from template '" << template_name.value_or("none") << "'\n";
 
     return 0;
 }
