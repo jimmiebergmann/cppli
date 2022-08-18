@@ -246,6 +246,7 @@ namespace cppli {
         help_callback callback = {};
 
         bool has_names() const;
+        bool has_name(std::string_view p_name) const;
 
         help& set_name(const std::string& p_name);
         help& set_name(std::string&& p_name);
@@ -616,6 +617,14 @@ namespace cppli {
     inline bool help::has_names() const {
         auto it = std::find_if(names.begin(), names.end(),
             [](const auto& name) { return !name.empty(); });
+
+        return it != names.end();
+    }
+
+    inline bool help::has_name(std::string_view p_name) const {
+        auto it = std::find_if(names.begin(), names.end(), [p_name](const auto& name) {
+            return name == p_name;
+        });
 
         return it != names.end();
     }
@@ -1151,6 +1160,13 @@ namespace cppli {
             return parse_codes::missing_path;
         }
 
+        // Help
+        if (current_help_handler != nullptr && current_help_handler->callback &&
+            p_context.argc > 0 && current_help_handler->has_name(p_context.argv[0]))
+        {
+            return current_help_handler->callback(p_context);
+        }
+
         // Required options.
         for (auto& option : required_options) {
             auto first_opt_name = !option.names.empty() ? option.names.front() : "opt";
@@ -1229,23 +1245,6 @@ namespace cppli {
      
             error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
             return parse_codes::unknown_option;
-
-            /*if (current_help_handler == nullptr || !current_help_handler->has_names()) {
-                error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
-                return parse_codes::unknown_command;
-            }
-
-            auto help_it = std::find_if(current_help_handler->names.begin(), current_help_handler->names.end(),
-                [&opt_name](const auto& name) { return name == opt_name; });
-
-            if (help_it == current_help_handler->names.end()) {
-                error_callback(p_context, "Unknown option '" + std::string{ opt_name } + "'.");
-                return parse_codes::unknown_command;
-            }
-
-            return current_help_handler->callback ?
-                current_help_handler->callback(p_context) :
-                parse_codes::successful;*/
         }
 
         return parse_codes::successful;
