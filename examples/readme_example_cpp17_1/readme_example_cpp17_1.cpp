@@ -38,7 +38,10 @@ int new_project_callback(cli::context& context) {
         = cli::option<std::string>{ name, { "name" }, "Name of project." }
         | cli::option<std::optional<std::string>>{ template_name, { "--template" }, "Optional template filename." };
 
-    if (auto result = options.parse(context); result != cli::parse_codes::successful) {
+    if (auto result = options.parse(context); result == cli::parse_codes::successful_help) {
+        return 0;
+    }
+    else if (result != cli::parse_codes::successful) {
         return result;
     }
 

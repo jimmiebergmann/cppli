@@ -53,7 +53,10 @@ int new_project_callback(cli::context& context) {
             .description = "Optional template filename."
           };
 
-    if (auto result = options.parse(context); result != cli::parse_codes::successful) {
+    if (auto result = options.parse(context); result == cli::parse_codes::successful_help) {
+        return 0;
+    }
+    else if (result != cli::parse_codes::successful) {
         return result;
     }
 
@@ -81,7 +84,7 @@ Commands:
 > readme_example_cpp20 new --help
 ```
 ```
-Usage: new <name> [option]
+Usage: new <name> [options]
 
 Options:
   -h|--help       Show command line help.
