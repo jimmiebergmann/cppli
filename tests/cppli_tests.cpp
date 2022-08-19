@@ -715,7 +715,7 @@ TEST(default_help, context)
         auto args = std::array{ "path/to/program", "--help" };
         auto context
             = cli::context{}
-            .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
+                .set_arg(static_cast<int>(args.size()), const_cast<char**>(args.data()))
             | cli::default_help{};
 
         EXPECT_EQ(context.argc, 2);
@@ -724,7 +724,7 @@ TEST(default_help, context)
         std::stringstream cout_stream;
         {
             auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
-            ASSERT_EQ(group.parse(context), 0);
+            ASSERT_EQ(group.parse(context), cli::parse_codes::successful_help);
         }
 
         std::string expected_help_string =
@@ -752,7 +752,7 @@ TEST(default_help, context)
         std::stringstream cout_stream;
         {
             auto cout_redirect = test::output_redirect{ std::cout, cout_stream };
-            ASSERT_EQ(group.parse(context), 0);
+            ASSERT_EQ(group.parse(context), cli::parse_codes::successful_help);
         }
 
         std::string expected_help_string =

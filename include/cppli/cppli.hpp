@@ -62,12 +62,13 @@ namespace cppli {
 
     namespace parse_codes {
         static constexpr int successful = 0;
-        static constexpr int missing_path = 1;
-        static constexpr int missing_command = 2;
-        static constexpr int unknown_command = 3;
-        static constexpr int missing_option = 4;     
-        static constexpr int invalid_option = 5;
-        static constexpr int unknown_option = 6;
+        static constexpr int successful_help = 1;
+        static constexpr int missing_path = 2;
+        static constexpr int missing_command = 3;
+        static constexpr int unknown_command = 4;
+        static constexpr int missing_option = 5;
+        static constexpr int invalid_option = 6;
+        static constexpr int unknown_option = 7;
     }
 
     context operator | (const context& lhs, const error& rhs);
@@ -686,7 +687,7 @@ namespace cppli {
                 p_context.current_option_group.value());
         }
 
-        return 0;
+        return parse_codes::successful_help;
     }
 
     inline std::string default_help::default_string(
@@ -962,22 +963,15 @@ namespace cppli {
 
         auto command = find_command(command_name);
         if (command == nullptr) {
-            if (current_help_handler == nullptr || !current_help_handler->has_names()) {
-                error_callback(p_context, "Unknown command '" + std::string{ command_name } + "'.");
-                return parse_codes::unknown_command;
+            // Help
+            if (current_help_handler != nullptr && current_help_handler->callback &&
+                current_help_handler->has_name(command_name))
+            {
+                return current_help_handler->callback(p_context);
             }
 
-            auto help_it = std::find_if(current_help_handler->names.begin(), current_help_handler->names.end(),
-                [&command_name](const auto& name) { return name == command_name; });
-
-            if (help_it == current_help_handler->names.end()) {
-                error_callback(p_context, "Unknown command '" + std::string{ command_name } + "'.");
-                return parse_codes::unknown_command;
-            }
-
-            return current_help_handler->callback ?
-                current_help_handler->callback(p_context) :
-                parse_codes::successful;
+            error_callback(p_context, "Unknown command '" + std::string{ command_name } + "'.");
+            return parse_codes::unknown_command;
         }
 
         p_context.current_path.emplace_back(command_name);
