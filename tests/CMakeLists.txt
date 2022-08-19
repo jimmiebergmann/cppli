@@ -31,6 +31,9 @@ add_executable(cppli_tests "${source_files}" "${cppli_header_file}")
 target_include_directories(cppli_tests PUBLIC "${include_dir}")
 target_include_directories(cppli_tests PUBLIC "${vendor_dir}/googletest/googletest/include")
 
+include(${root_dir}/cmake/tools.cmake)
+set_default_compile_options(cppli_tests)
+
 set_target_properties(cppli_tests
   PROPERTIES
   CXX_STANDARD 17

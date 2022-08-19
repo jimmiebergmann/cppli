@@ -22,6 +22,9 @@ file(GLOB_RECURSE source_file "${this_example_dir}/*.cpp")
 add_executable(readme_example_cpp17_1 "${source_file}" "${cppli_header_file}")
 target_include_directories(readme_example_cpp17_1 PUBLIC "${include_dir}")
 
+include(${root_dir}/cmake/tools.cmake)
+set_default_compile_options(readme_example_cpp17_1)
+
 set_target_properties(readme_example_cpp17_1
   PROPERTIES
   CXX_STANDARD 17

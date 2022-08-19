@@ -234,7 +234,7 @@ namespace cppli {
 
         default_error();
 
-        static void default_callback(context& p_cotext, std::string p_message);
+        static void default_callback(context& p_context, std::string p_message);
 
     };
 
@@ -542,22 +542,11 @@ namespace cppli::impl {
 
             using type = typename impl::raw_option_type_t<std::decay_t<decltype(p_value)>>;
 
-            constexpr bool is_bool = std::is_same_v<type, bool> == true;
-            constexpr bool is_number = is_bool == false && (std::is_integral_v<type> == true || std::is_floating_point_v<type> == true);
-
-            if constexpr (is_number == true) {
-                type value{};
-                const auto result = std::from_chars(string.data(), string.data() + string.size(), value).ec == std::errc();
-                if (result) {
-                    p_value = value;
-                }
-                return result;
-            }
-            else if constexpr (is_bool == true) {
+            if constexpr (std::is_same_v<type, bool> == true) {
                 auto string_copy = std::string{ string };
                 std::transform(string_copy.begin(), string_copy.end(), string_copy.begin(), [](const auto c) {
                     return static_cast<decltype(c)>(std::tolower(static_cast<int>(c)));
-                });
+                    });
 
                 if (string_copy == "true" || string_copy == "1") {
                     p_value = true;
@@ -569,6 +558,14 @@ namespace cppli::impl {
                 }
 
                 return false;
+            }
+            else if constexpr (std::is_integral_v<type> == true || std::is_floating_point_v<type> == true) {
+                type value{};
+                const auto result = std::from_chars(string.data(), string.data() + string.size(), value).ec == std::errc();
+                if (result) {
+                    p_value = value;
+                }
+                return result;
             }
             else {
                 p_value = string;
@@ -609,7 +606,7 @@ namespace cppli {
         error{ &default_callback }
     {}
 
-    inline void default_error::default_callback(context& p_cotext, std::string p_message) {
+    inline void default_error::default_callback(context&, std::string p_message) {
         std::cerr << p_message << "\n";
     }
 
@@ -713,12 +710,12 @@ namespace cppli {
         std::vector<std::pair<std::string, std::string>> command_rows = {};
         command_rows.reserve(pre_command_count);
 
-        auto add_command_row = [&](const std::vector<std::string>& names, const std::string& description) {
-            const std::string name = join_names(names);
+        auto add_command_row = [&](const std::vector<std::string>& p_names, const std::string& p_description) {
+            const std::string name = join_names(p_names);
             if (name.empty()) {
                 return;
             }
-            command_rows.emplace_back(name, description);
+            command_rows.emplace_back(name, p_description);
             min_command_column = std::max(min_command_column, name.size());
         };
 
@@ -769,12 +766,12 @@ namespace cppli {
         std::vector<std::pair<std::string, std::string>> option_rows = {};
         option_rows.reserve(pre_command_count);
 
-        auto add_option_row = [&](const std::vector<std::string>& names, const std::string& description) {
-            const std::string name = join_names(names);
+        auto add_option_row = [&](const std::vector<std::string>& p_names, const std::string& p_description) {
+            const std::string name = join_names(p_names);
             if (name.empty()) {
                 return;
             }
-            option_rows.emplace_back(name, description);
+            option_rows.emplace_back(name, p_description);
             min_command_column = std::max(min_command_column, name.size());
         };
 
