@@ -61,3 +61,27 @@ jobs:
         if: ${{ matrix.compiler == 'g++' && matrix.build_type == 'Debug' }}
         with:
           gcov: true
+  
+  Windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+        include:
+          - build_type: Debug
+            output_name_postfix: _d
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} ..
+          cmake --build . --config ${{matrix.build_type}}
+      - name: Test
+        run: |
+          cd bin
+          ./cppli_tests${{matrix.output_name_postfix}}.exe
+
