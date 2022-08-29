@@ -9,6 +9,7 @@ Following example is from examples/readme_example_cpp20. See other [examples](ht
 
 namespace cli = cppli;
 
+bool is_debug = false;
 int new_project_callback(cli::context&);
 
 int main(int argc, char** argv) {
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
         | cli::default_help{}
         | cli::default_error{};
 
-    auto commands
+    auto parameters
         = cli::command{
             .names = { "new" },
             .description = "Create new project.",
@@ -32,16 +33,21 @@ int main(int argc, char** argv) {
             .names = { "build", "yolo" },
             .description = "Build project.",
             .callback = [](cli::context&) { /* Code here... */ return 0; }
+          }
+        | cli::option_flag<bool>{ /* Global debug flag. */
+            .value = is_debug,
+            .names = { "-d", "--debug" },
+            .description = "Run program in debug mode.",
           };
 
-    return commands.parse(context);
+    return parameters.parse(context);
 }
 
 int new_project_callback(cli::context& context) {
     auto name = std::string{};
     auto template_name = std::optional<std::string>{};
 
-    auto options 
+    auto parameters 
         = cli::option<std::string>{ 
             .value = name,
             .names = { "name" },
@@ -53,7 +59,7 @@ int new_project_callback(cli::context& context) {
             .description = "Optional template filename."
           };
 
-    if (auto result = options.parse(context); result == cli::parse_codes::successful_help) {
+    if (auto result = parameters.parse(context); result == cli::parse_codes::successful_help) {
         return 0;
     }
     else if (result != cli::parse_codes::successful) {
@@ -62,7 +68,8 @@ int new_project_callback(cli::context& context) {
 
     /* Create new project with name and template here... */
     std::cout << "New project '" << name
-              << "', from template '" << template_name.value_or("none") << "'\n";
+              << "', from template '" << template_name.value_or("none")
+              << (is_debug ? "' in debug mode.\n" : "'.\n");
 
     return 0;
 }
@@ -72,7 +79,10 @@ int new_project_callback(cli::context& context) {
 > readme_example_cpp20 --help
 ```
 ```
-Usage: readme_example_cpp20 [command] [command-options]
+Usage: readme_example_cpp20_d [options] [command] [command-options]
+
+Options:
+  -d|--debug      Run program in debug mode.
 
 Commands:
   -h|--help       Show command line help.
@@ -92,10 +102,10 @@ Options:
   --template      Optional template filename.
 ```
 ```
-> readme_example_cpp20 new example --template test
+> readme_example_cpp20 --debug new example --template test
 ```
 ```
-New project 'example', from template 'test'
+New project 'example', from template 'test' in debug mode.
 ```
 
 # Usage
