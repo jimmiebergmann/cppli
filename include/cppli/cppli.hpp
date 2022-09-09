@@ -1325,11 +1325,11 @@ namespace cppli {
     }
     inline context operator | (context&& lhs, const error& rhs) {
         lhs.set_error(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline context operator | (context&& lhs, error&& rhs) {
         lhs.set_error(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     inline context operator | (const context& lhs, const help& rhs) {
@@ -1344,11 +1344,11 @@ namespace cppli {
     }
     inline context operator | (context&& lhs, const help& rhs) {
         lhs.set_help(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline context operator | (context&& lhs, help&& rhs) {
         lhs.set_help(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
 
@@ -1620,11 +1620,11 @@ namespace cppli {
     }
     inline parameters operator | (parameters&& lhs, const parameters& rhs) {
         lhs.add_parameters(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline parameters operator | (parameters&& lhs, parameters&& rhs) {
         lhs.add_parameters(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     template<typename T>
@@ -1642,12 +1642,12 @@ namespace cppli {
     template<typename T>
     inline parameters operator | (parameters&& lhs, const option<T>& rhs) {
         lhs.add_option(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     template<typename T>
     inline parameters operator | (parameters&& lhs, option<T>&& rhs) {
         lhs.add_option(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     template<typename T>
@@ -1665,12 +1665,12 @@ namespace cppli {
     template<typename T>
     inline parameters operator | (parameters&& lhs, const option_flag<T>& rhs) {
         lhs.add_option(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     template<typename T>
     inline parameters operator | (parameters&& lhs, option_flag<T>&& rhs) {
         lhs.add_option(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     inline parameters operator | (const parameters& lhs, const command& rhs) {
@@ -1685,11 +1685,11 @@ namespace cppli {
     }
     inline parameters operator | (parameters&& lhs, const command& rhs) {
         lhs.add_command(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline parameters operator | (parameters&& lhs, command&& rhs) {
         lhs.add_command(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     inline parameters operator | (const parameters& lhs, const error& rhs) {
@@ -1704,11 +1704,11 @@ namespace cppli {
     }
     inline parameters operator | (parameters&& lhs, const error& rhs) {
         lhs.set_error(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline parameters operator | (parameters&& lhs, error&& rhs) {
         lhs.set_error(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
     inline parameters operator | (const parameters& lhs, const help& rhs) {
@@ -1723,11 +1723,11 @@ namespace cppli {
     }
     inline parameters operator | (parameters&& lhs, const help& rhs) {
         lhs.set_help(rhs);
-        return lhs;
+        return std::move(lhs);
     }
     inline parameters operator | (parameters&& lhs, help&& rhs) {
         lhs.set_help(std::move(rhs));
-        return lhs;
+        return std::move(lhs);
     }
 
 }
